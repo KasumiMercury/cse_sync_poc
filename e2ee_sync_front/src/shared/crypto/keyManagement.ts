@@ -1,0 +1,99 @@
+import { getSodium } from "../utils/sodium";
+
+export const LOCAL_KEK_KEY_NAME = "local-kek";
+
+export async function generateUMK(): Promise<Uint8Array> {
+  const sodium = await getSodium();
+  // Generate 32 random bytes for UMK
+  return sodium.randombytes_buf(32);
+}
+
+export async function generateLocalKEK(): Promise<CryptoKey> {
+  const key = await crypto.subtle.generateKey(
+    {
+      name: "AES-GCM",
+      length: 256,
+    },
+    false, // extractable
+    ["wrapKey", "unwrapKey"],
+  );
+
+  return key;
+}
+
+export async function wrapUMK(
+  umk: Uint8Array,
+  localKEK: CryptoKey,
+): Promise<string> {
+  const umkKey = await crypto.subtle.importKey(
+    "raw",
+    umk,
+    {
+      name: "AES-GCM",
+      length: 256,
+    },
+    true, // extractable
+    ["encrypt", "decrypt"],
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const wrappedKey = await crypto.subtle.wrapKey("raw", umkKey, localKEK, {
+    name: "AES-GCM",
+    iv: iv,
+  });
+
+  const combined = new Uint8Array(iv.length + wrappedKey.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(wrappedKey), iv.length);
+
+  return arrayBufferToBase64(combined);
+}
+
+export async function unwrapUMK(
+  wrappedUMKBase64: string,
+  localKEK: CryptoKey,
+): Promise<Uint8Array> {
+  const combined = base64ToArrayBuffer(wrappedUMKBase64);
+
+  const iv = combined.slice(0, 12);
+  const wrappedKey = combined.slice(12);
+
+  const umkKey = await crypto.subtle.unwrapKey(
+    "raw",
+    wrappedKey,
+    localKEK,
+    {
+      name: "AES-GCM",
+      iv: iv,
+    },
+    {
+      name: "AES-GCM",
+      length: 256,
+    },
+    true, // extractable: true
+    ["encrypt", "decrypt"],
+  );
+
+  const umkArrayBuffer = await crypto.subtle.exportKey("raw", umkKey);
+  return new Uint8Array(umkArrayBuffer);
+}
+
+function arrayBufferToBase64(buffer: Uint8Array): string {
+  let binary = "";
+  const len = buffer.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}

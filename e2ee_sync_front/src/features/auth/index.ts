@@ -1,14 +1,14 @@
 // Components
-export { LoginForm } from "./components/LoginForm";
 
 // API
-export { register, login, getSession, logout } from "./api/authApi";
+export { getSession, login, logout, register } from "./api/authApi";
+export { LoginForm } from "./components/LoginForm";
 
 // Types
 export type {
-  SessionInfo,
-  RegisterRequest,
-  RegisterResponse,
   LoginRequest,
   LoginResponse,
+  RegisterRequest,
+  RegisterResponse,
+  SessionInfo,
 } from "./types/session";

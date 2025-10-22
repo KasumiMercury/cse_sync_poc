@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { SessionInfo } from "../../auth/types/session";
 import { logout } from "../../auth/api/authApi";
+import type { SessionInfo } from "../../auth/types/session";
 
 interface DashboardProps {
   session: SessionInfo;

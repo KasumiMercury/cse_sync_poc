@@ -7,14 +7,20 @@ import type {
   SessionInfo,
 } from "../types/session";
 
-export async function register(username: string): Promise<RegisterResponse> {
+export async function register(
+  username: string,
+  wrappedUMK: string,
+): Promise<RegisterResponse> {
   const response = await fetch(`${API_BASE_URL}/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify({ username } as RegisterRequest),
+    body: JSON.stringify({
+      username,
+      wrapped_umk: wrappedUMK,
+    } as RegisterRequest),
   });
 
   if (!response.ok) {

@@ -10,7 +10,15 @@ export interface DebugSession {
   expires_at: string;
 }
 
+export interface DebugDevice {
+  id: string;
+  user_id: string;
+  wrapped_umk: string;
+  created_at: string;
+}
+
 export interface DebugInfo {
   users: DebugUser[];
   sessions: DebugSession[];
+  devices: DebugDevice[];
 }

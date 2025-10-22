@@ -1,4 +1,12 @@
 import { useId, useState } from "react";
+import {
+  generateLocalKEK,
+  generateUMK,
+  LOCAL_KEK_KEY_NAME,
+  unwrapUMK,
+  wrapUMK,
+} from "../../../shared/crypto/keyManagement";
+import { getKey, storeKey } from "../../../shared/db/indexedDB";
 import { login, register } from "../api/authApi";
 
 interface LoginFormProps {
@@ -26,7 +34,21 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
-      await login(username);
+      const localKEK = await getKey(LOCAL_KEK_KEY_NAME);
+
+      if (!localKEK) {
+        throw new Error(
+          "Local encryption key not found. Please register on this device first.",
+        );
+      }
+
+      const response = await login(username);
+
+      const umk = await unwrapUMK(response.wrapped_umk, localKEK);
+
+      console.log("UMK successfully unwrapped:", umk.length, "bytes");
+      console.log("Device ID:", response.device_id);
+
       onLoginSuccess();
     } catch (err) {
       const errorMessage =
@@ -49,8 +71,24 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
-      await register(username);
-      setSuccessMessage("Registration successful! You can now log in.");
+      const umk = await generateUMK();
+      console.log("UMK generated:", umk.length, "bytes");
+
+      const localKEK = await generateLocalKEK();
+      console.log("Local-KEK generated (non-extractable)");
+
+      await storeKey(LOCAL_KEK_KEY_NAME, localKEK);
+      console.log("Local-KEK stored successfully");
+
+      const wrappedUMK = await wrapUMK(umk, localKEK);
+      console.log("UMK wrapped successfully");
+
+      const response = await register(username, wrappedUMK);
+      console.log("Registration successful, Device ID:", response.device_id);
+
+      setSuccessMessage(
+        "Registration successful! Your encryption keys have been generated. You can now log in.",
+      );
       setUsername("");
     } catch (err) {
       const errorMessage =

@@ -14,10 +14,11 @@ func main() {
 	// Initialize stores
 	userStore := store.NewUserStore()
 	sessionStore := store.NewSessionStore()
+	deviceStore := store.NewDeviceStore()
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userStore, sessionStore)
-	debugHandler := handlers.NewDebugHandler(userStore, sessionStore)
+	authHandler := handlers.NewAuthHandler(userStore, sessionStore, deviceStore)
+	debugHandler := handlers.NewDebugHandler(userStore, sessionStore, deviceStore)
 
 	// Create Echo instance
 	e := echo.New()

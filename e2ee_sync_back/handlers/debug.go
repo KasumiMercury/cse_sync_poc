@@ -12,13 +12,15 @@ import (
 type DebugHandler struct {
 	userStore    *store.UserStore
 	sessionStore *store.SessionStore
+	deviceStore  *store.DeviceStore
 }
 
 // NewDebugHandler creates a new DebugHandler
-func NewDebugHandler(userStore *store.UserStore, sessionStore *store.SessionStore) *DebugHandler {
+func NewDebugHandler(userStore *store.UserStore, sessionStore *store.SessionStore, deviceStore *store.DeviceStore) *DebugHandler {
 	return &DebugHandler{
 		userStore:    userStore,
 		sessionStore: sessionStore,
+		deviceStore:  deviceStore,
 	}
 }
 
@@ -26,15 +28,18 @@ func NewDebugHandler(userStore *store.UserStore, sessionStore *store.SessionStor
 type DebugResponse struct {
 	Users    []*models.User    `json:"users"`
 	Sessions []*models.Session `json:"sessions"`
+	Devices  []*models.Device  `json:"devices"`
 }
 
-// GetDebugInfo returns all users and sessions for debugging
+// GetDebugInfo returns all users, sessions, and devices for debugging
 func (h *DebugHandler) GetDebugInfo(c echo.Context) error {
 	users := h.userStore.GetAll()
 	sessions := h.sessionStore.GetAll()
+	devices := h.deviceStore.GetAll()
 
 	return c.JSON(http.StatusOK, DebugResponse{
 		Users:    users,
 		Sessions: sessions,
+		Devices:  devices,
 	})
 }

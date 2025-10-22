@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { getSession, LoginForm, type SessionInfo } from "./features/auth";
 import { Dashboard } from "./features/dashboard";
 import { Debug } from "./features/debug";
-import { LoginForm, getSession, type SessionInfo } from "./features/auth";
 
 type Page = "login" | "dashboard" | "debug";
 

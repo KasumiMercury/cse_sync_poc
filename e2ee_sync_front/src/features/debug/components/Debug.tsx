@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DebugInfo } from "../types/debug";
 import { getDebugInfo } from "../api/debugApi";
+import type { DebugInfo } from "../types/debug";
 
 interface DebugProps {
   onBack: () => void;
@@ -175,6 +175,61 @@ export function Debug({ onBack }: DebugProps) {
                                 Active
                               </span>
                             )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Devices Table */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Devices ({debugInfo.devices?.length || 0})
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                {!debugInfo.devices || debugInfo.devices.length === 0 ? (
+                  <p className="px-6 py-4 text-gray-500 text-sm">
+                    No devices registered
+                  </p>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Device ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          User ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Wrapped UMK (Preview)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created At
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {debugInfo.devices.map((device) => (
+                        <tr key={device.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                            {device.id}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                            {device.user_id}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-mono text-gray-900">
+                            <div className="max-w-xs truncate">
+                              {device.wrapped_umk?.substring(0, 40) || "N/A"}...
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatDateTime(device.created_at)}
                           </td>
                         </tr>
                       ))}

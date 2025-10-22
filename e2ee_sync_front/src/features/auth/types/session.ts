@@ -5,11 +5,13 @@ export interface SessionInfo {
 
 export interface RegisterRequest {
   username: string;
+  wrapped_umk: string;
 }
 
 export interface RegisterResponse {
   user_id: string;
   username: string;
+  device_id: string;
 }
 
 export interface LoginRequest {
@@ -19,4 +21,6 @@ export interface LoginRequest {
 export interface LoginResponse {
   user_id: string;
   username: string;
+  device_id: string;
+  wrapped_umk: string;
 }

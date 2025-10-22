@@ -14,25 +14,29 @@ import (
 type AuthHandler struct {
 	userStore    *store.UserStore
 	sessionStore *store.SessionStore
+	deviceStore  *store.DeviceStore
 }
 
 // NewAuthHandler creates a new AuthHandler
-func NewAuthHandler(userStore *store.UserStore, sessionStore *store.SessionStore) *AuthHandler {
+func NewAuthHandler(userStore *store.UserStore, sessionStore *store.SessionStore, deviceStore *store.DeviceStore) *AuthHandler {
 	return &AuthHandler{
 		userStore:    userStore,
 		sessionStore: sessionStore,
+		deviceStore:  deviceStore,
 	}
 }
 
 // RegisterRequest represents the registration request body
 type RegisterRequest struct {
-	Username string `json:"username"`
+	Username   string `json:"username"`
+	WrappedUMK string `json:"wrapped_umk"` // Base64-encoded wrapped UMK
 }
 
 // RegisterResponse represents the registration response
 type RegisterResponse struct {
 	UserID   uuid.UUID `json:"user_id"`
 	Username string    `json:"username"`
+	DeviceID uuid.UUID `json:"device_id"`
 }
 
 // LoginRequest represents the login request body
@@ -42,8 +46,10 @@ type LoginRequest struct {
 
 // LoginResponse represents the login response
 type LoginResponse struct {
-	UserID   uuid.UUID `json:"user_id"`
-	Username string    `json:"username"`
+	UserID     uuid.UUID `json:"user_id"`
+	Username   string    `json:"username"`
+	DeviceID   uuid.UUID `json:"device_id"`
+	WrappedUMK string    `json:"wrapped_umk"` // Base64-encoded wrapped UMK
 }
 
 // SessionResponse represents the session info response
@@ -63,6 +69,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "username is required")
 	}
 
+	if req.WrappedUMK == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "wrapped_umk is required")
+	}
+
 	// Check if user already exists
 	_, exists := h.userStore.FindByUsername(req.Username)
 	if exists {
@@ -72,9 +82,13 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	// Create new user
 	user := h.userStore.Create(req.Username)
 
+	// Create device with WrappedUMK
+	device := h.deviceStore.Create(user.ID, req.WrappedUMK)
+
 	return c.JSON(http.StatusCreated, RegisterResponse{
 		UserID:   user.ID,
 		Username: user.Username,
+		DeviceID: device.ID,
 	})
 }
 
@@ -95,6 +109,16 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "user not found")
 	}
 
+	// Find user's devices
+	devices := h.deviceStore.FindByUserID(user.ID)
+	if len(devices) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "no device found for user")
+	}
+
+	// For PoC, use the first device
+	// In production, client should specify deviceID or handle multiple devices
+	device := devices[0]
+
 	// Create session
 	session := h.sessionStore.Create(user.ID)
 
@@ -110,8 +134,10 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	c.SetCookie(cookie)
 
 	return c.JSON(http.StatusOK, LoginResponse{
-		UserID:   user.ID,
-		Username: user.Username,
+		UserID:     user.ID,
+		Username:   user.Username,
+		DeviceID:   device.ID,
+		WrappedUMK: device.WrappedUMK,
 	})
 }
 

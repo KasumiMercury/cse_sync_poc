@@ -1,0 +1,10 @@
+export interface DeviceInfo {
+  device_id: string;
+  user_id: string;
+  wrapped_umk: string;
+  created_at: string;
+}
+
+export type UMK = Uint8Array;
+export type LocalKEK = CryptoKey;
+export type WrappedUMK = string;
