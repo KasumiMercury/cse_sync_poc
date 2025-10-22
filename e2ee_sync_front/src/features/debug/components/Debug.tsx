@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DebugInfo } from "../types/debug";
-import { getDebugInfo } from "../utils/api";
+import { getDebugInfo } from "../api/debugApi";
 
 interface DebugProps {
   onBack: () => void;

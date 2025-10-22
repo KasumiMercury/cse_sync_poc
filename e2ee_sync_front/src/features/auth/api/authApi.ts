@@ -1,4 +1,4 @@
-import type { DebugInfo } from "../types/debug";
+import { API_BASE_URL } from "../../../shared/constants/api";
 import type {
   LoginRequest,
   LoginResponse,
@@ -6,8 +6,6 @@ import type {
   RegisterResponse,
   SessionInfo,
 } from "../types/session";
-
-const API_BASE_URL = "http://localhost:8080/api";
 
 export async function register(username: string): Promise<RegisterResponse> {
   const response = await fetch(`${API_BASE_URL}/register`, {
@@ -68,16 +66,4 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     throw new Error("Logout failed");
   }
-}
-
-export async function getDebugInfo(): Promise<DebugInfo> {
-  const response = await fetch(`${API_BASE_URL}/debug`, {
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch debug info");
-  }
-
-  return response.json();
 }

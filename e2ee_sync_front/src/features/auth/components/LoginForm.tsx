@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { login, register } from "../utils/api";
+import { login, register } from "../api/authApi";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;

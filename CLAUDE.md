@@ -44,15 +44,30 @@ e2ee_sync_front/src/
 ├── App.tsx                 # Main app component with page routing
 ├── main.tsx               # Entry point
 ├── index.css              # TailwindCSS imports
-├── components/
-│   ├── LoginForm.tsx      # Login/Registration form
-│   ├── Dashboard.tsx      # Post-login dashboard
-│   └── Debug.tsx          # Debug information page
-├── types/
-│   ├── session.ts         # Session-related types
-│   └── debug.ts           # Debug info types
-└── utils/
-    └── api.ts             # API communication utilities
+├── features/               # Feature-based organization
+│   ├── auth/              # Authentication feature
+│   │   ├── components/
+│   │   │   └── LoginForm.tsx      # Login/Registration form
+│   │   ├── types/
+│   │   │   └── session.ts         # Session-related types
+│   │   ├── api/
+│   │   │   └── authApi.ts         # Auth API functions
+│   │   └── index.ts               # Public exports
+│   ├── dashboard/         # Dashboard feature
+│   │   ├── components/
+│   │   │   └── Dashboard.tsx      # Post-login dashboard
+│   │   └── index.ts               # Public exports
+│   └── debug/             # Debug feature
+│       ├── components/
+│       │   └── Debug.tsx          # Debug information page
+│       ├── types/
+│       │   └── debug.ts           # Debug info types
+│       ├── api/
+│       │   └── debugApi.ts        # Debug API functions
+│       └── index.ts               # Public exports
+└── shared/                # Shared utilities and constants
+    └── constants/
+        └── api.ts         # API base URL
 ```
 
 ### Frontend Configuration
