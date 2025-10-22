@@ -17,8 +17,16 @@ export interface DebugDevice {
   created_at: string;
 }
 
+export interface DebugMessage {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+}
+
 export interface DebugInfo {
   users: DebugUser[];
   sessions: DebugSession[];
   devices: DebugDevice[];
+  messages: DebugMessage[];
 }
