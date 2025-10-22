@@ -7,6 +7,11 @@ import {
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
 import { getKey, storeKey } from "../../../shared/db/indexedDB";
+import {
+  getDeviceId,
+  hasDeviceId,
+  saveDeviceId,
+} from "../../../shared/storage/deviceStorage";
 import { login, register } from "../api/authApi";
 
 interface LoginFormProps {
@@ -34,6 +39,15 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
+      if (!hasDeviceId()) {
+        throw new Error(
+          "No device found. Please register on this device first.",
+        );
+      }
+
+      const storedDeviceId = getDeviceId();
+      console.log("Using stored Device ID:", storedDeviceId);
+
       const localKEK = await getKey(LOCAL_KEK_KEY_NAME);
 
       if (!localKEK) {
@@ -47,7 +61,7 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       const umk = await unwrapUMK(response.wrapped_umk, localKEK);
 
       console.log("UMK successfully unwrapped:", umk.length, "bytes");
-      console.log("Device ID:", response.device_id);
+      console.log("Device ID from server:", response.device_id);
 
       onLoginSuccess();
     } catch (err) {
@@ -85,6 +99,10 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
 
       const response = await register(username, wrappedUMK);
       console.log("Registration successful, Device ID:", response.device_id);
+
+      // Save device ID to LocalStorage
+      saveDeviceId(response.device_id);
+      console.log("Device ID saved to LocalStorage");
 
       setSuccessMessage(
         "Registration successful! Your encryption keys have been generated. You can now log in.",
