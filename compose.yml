@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./e2ee_sync_back
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./e2ee_sync_back:/app
+      - go-cache:/go/pkg/mod
+    environment:
+      - CGO_ENABLED=0
+    networks:
+      - e2ee-network
+
+  frontend:
+    build:
+      context: ./e2ee_sync_front
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./e2ee_sync_front:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    networks:
+      - e2ee-network
+    depends_on:
+      - backend
+
+volumes:
+  go-cache:
+
+networks:
+  e2ee-network:
+    driver: bridge
