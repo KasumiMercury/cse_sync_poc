@@ -279,9 +279,7 @@ export function Debug({ onBack }: DebugProps) {
                             {message.user_id}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="max-w-md">
-                              {message.content}
-                            </div>
+                            <div className="max-w-md">{message.content}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {formatDateTime(message.created_at)}

@@ -110,9 +110,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Messages
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Messages</h2>
 
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">

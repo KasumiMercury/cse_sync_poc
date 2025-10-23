@@ -30,7 +30,6 @@ export async function wrapUMK(
     umk,
     {
       name: "AES-GCM",
-      length: 256,
     },
     true, // extractable
     ["encrypt", "decrypt"],
@@ -69,7 +68,6 @@ export async function unwrapUMK(
     },
     {
       name: "AES-GCM",
-      length: 256,
     },
     true, // extractable: true
     ["encrypt", "decrypt"],
