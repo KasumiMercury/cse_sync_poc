@@ -9,7 +9,10 @@ import {
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
 import { getKey, storeKey } from "../../../shared/db/indexedDB";
-import { getDeviceId, saveDeviceId } from "../../../shared/storage/deviceStorage";
+import {
+  getDeviceId,
+  saveDeviceId,
+} from "../../../shared/storage/deviceStorage";
 import { login, registerFinalize, registerInit } from "../api/authApi";
 
 interface LoginFormProps {
@@ -105,7 +108,10 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       console.log("UMK stored locally for active session");
 
       const completeResponse = await registerFinalize(wrappedUMK);
-      console.log("Registration finalized, Device ID:", completeResponse.device_id);
+      console.log(
+        "Registration finalized, Device ID:",
+        completeResponse.device_id,
+      );
 
       // Save device ID to LocalStorage
       if (!completeResponse.device_id) {

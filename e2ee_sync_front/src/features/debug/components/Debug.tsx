@@ -283,7 +283,9 @@ export function Debug({ onBack }: DebugProps) {
                           </td>
                           <td className="px-6 py-4 text-sm font-mono text-gray-900">
                             <div className="max-w-xs truncate">
-                              {message.encrypted_content?.substring(0, 40) || "N/A"}...
+                              {message.encrypted_content?.substring(0, 40) ||
+                                "N/A"}
+                              ...
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm font-mono text-gray-900">
