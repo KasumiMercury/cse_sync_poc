@@ -19,14 +19,14 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
 
   const loadMessages = useCallback(async () => {
     try {
-      const fetchedMessages = await getMessages();
+      const fetchedMessages = await getMessages(session);
       setMessages(fetchedMessages);
       setError(null);
     } catch (err) {
       console.error("Failed to load messages:", err);
       setError("Failed to load messages");
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     loadMessages();
@@ -39,7 +39,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
     setIsSending(true);
     setError(null);
     try {
-      await sendMessage(messageInput);
+      await sendMessage(messageInput, session);
       setMessageInput("");
       await loadMessages();
     } catch (err) {

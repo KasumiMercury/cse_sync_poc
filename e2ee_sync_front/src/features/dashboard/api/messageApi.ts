@@ -1,13 +1,17 @@
 import { API_BASE_URL } from "../../../shared/constants/api";
 import { retrieveUMK } from "../../../shared/crypto/keyManagement";
 import { getSodium } from "../../../shared/utils";
+import type { SessionInfo } from "../../auth/types/session";
 import type {
     CreateMessageRequest,
     EncryptedMessage,
     Message,
 } from "../types/message";
 
-export async function sendMessage(content: string): Promise<Message> {
+export async function sendMessage(
+    content: string,
+    session: SessionInfo,
+): Promise<Message> {
     const umk = retrieveUMK();
     if (!umk) {
         throw new Error("User Master Key not found");
@@ -21,9 +25,13 @@ export async function sendMessage(content: string): Promise<Message> {
         sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
     );
 
+    const nonceBase64 = sodium.to_base64(nonce);
+
+    const additionalData = sodium.from_string(session.user_id);
+
     const encryptedContent = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
         sodium.from_string(content),
-        null,
+        additionalData,
         null,
         nonce,
         umk,
@@ -37,7 +45,7 @@ export async function sendMessage(content: string): Promise<Message> {
         credentials: "include",
         body: JSON.stringify({
             content: sodium.to_base64(encryptedContent),
-            nonce: sodium.to_base64(nonce),
+            nonce: nonceBase64,
         } as CreateMessageRequest),
     });
 
@@ -48,7 +56,7 @@ export async function sendMessage(content: string): Promise<Message> {
     return response.json();
 }
 
-export async function getMessages(): Promise<Message[]> {
+export async function getMessages(session: SessionInfo): Promise<Message[]> {
     const umk = retrieveUMK();
     if (!umk) {
         throw new Error("User Master Key not found");
@@ -69,14 +77,15 @@ export async function getMessages(): Promise<Message[]> {
     const sodium = await getSodium();
 
     return messages.map((message) => {
-        const decryptedContent =
-            sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-                null,
-                sodium.from_base64(message.encrypted_content),
-                null,
-                sodium.from_base64(message.nonce),
-                umk,
-            );
+        const additionalData = sodium.from_string(session.user_id);
+
+        const decryptedContent = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+            null,
+            sodium.from_base64(message.encrypted_content),
+            additionalData,
+            sodium.from_base64(message.nonce),
+            umk,
+        );
         return {
             ...message,
             content: sodium.to_string(decryptedContent),

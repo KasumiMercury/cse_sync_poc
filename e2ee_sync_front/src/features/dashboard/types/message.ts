@@ -15,4 +15,5 @@ export interface EncryptedMessage {
 
 export interface CreateMessageRequest {
     content: string;
+    nonce: string;
 }
