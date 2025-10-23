@@ -2,13 +2,36 @@ import { API_BASE_URL } from "../../../shared/constants/api";
 import type {
   LoginRequest,
   LoginResponse,
+  RegisterInitRequest,
+  RegisterInitResponse,
   RegisterRequest,
   RegisterResponse,
   SessionInfo,
 } from "../types/session";
 
-export async function register(
+export async function registerInit(
   username: string,
+): Promise<RegisterInitResponse> {
+  const response = await fetch(`${API_BASE_URL}/register/init`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ username } as RegisterInitRequest),
+  });
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new Error("Username already exists");
+    }
+    throw new Error("Failed to initialize registration");
+  }
+
+  return response.json();
+}
+
+export async function registerFinalize(
   wrappedUMK: string,
 ): Promise<RegisterResponse> {
   const response = await fetch(`${API_BASE_URL}/register`, {
@@ -17,15 +40,18 @@ export async function register(
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify({
-      username,
-      wrapped_umk: wrappedUMK,
-    } as RegisterRequest),
+    body: JSON.stringify({ wrapped_umk: wrappedUMK } as RegisterRequest),
   });
 
   if (!response.ok) {
     if (response.status === 409) {
       throw new Error("Username already exists");
+    }
+    if (response.status === 401) {
+      throw new Error("Registration session expired. Please start over.");
+    }
+    if (response.status === 404) {
+      throw new Error("Registration session not found. Please start over.");
     }
     throw new Error("Registration failed");
   }

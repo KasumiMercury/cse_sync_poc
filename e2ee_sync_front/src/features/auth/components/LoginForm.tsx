@@ -1,19 +1,16 @@
 import { useId, useState } from "react";
 import {
+  buildLocalKEKKeyName,
+  buildUMKWrapAAD,
   generateLocalKEK,
   generateUMK,
-  LOCAL_KEK_KEY_NAME,
   storeUMK,
   unwrapUMK,
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
 import { getKey, storeKey } from "../../../shared/db/indexedDB";
-import {
-  getDeviceId,
-  hasDeviceId,
-  saveDeviceId,
-} from "../../../shared/storage/deviceStorage";
-import { login, register } from "../api/authApi";
+import { getDeviceId, saveDeviceId } from "../../../shared/storage/deviceStorage";
+import { login, registerFinalize, registerInit } from "../api/authApi";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -40,16 +37,10 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
-      if (!hasDeviceId()) {
-        throw new Error(
-          "No device found. Please register on this device first.",
-        );
-      }
+      const response = await login(username);
 
-      const storedDeviceId = getDeviceId();
-      console.log("Using stored Device ID:", storedDeviceId);
-
-      const localKEK = await getKey(LOCAL_KEK_KEY_NAME);
+      const keyName = buildLocalKEKKeyName(response.user_id);
+      const localKEK = await getKey(keyName);
 
       if (!localKEK) {
         throw new Error(
@@ -57,13 +48,18 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
         );
       }
 
-      const response = await login(username);
-
-      const umk = await unwrapUMK(response.wrapped_umk, localKEK);
+      const wrapAAD = buildUMKWrapAAD(response.user_id);
+      const umk = await unwrapUMK(response.wrapped_umk, localKEK, wrapAAD);
       storeUMK(umk);
 
       console.log("UMK successfully unwrapped:", umk.length, "bytes");
       console.log("Device ID from server:", response.device_id);
+
+      const storedDeviceId = getDeviceId();
+      if (!storedDeviceId || storedDeviceId !== response.device_id) {
+        saveDeviceId(response.device_id);
+        console.log("Device ID saved to LocalStorage");
+      }
 
       onLoginSuccess();
     } catch (err) {
@@ -87,29 +83,43 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
-      const umk = await generateUMK();
-      console.log("UMK generated:", umk.length, "bytes");
+      const initResponse = await registerInit(username);
+      const userId = initResponse.user_id;
+      console.log("Registration initialized, User ID:", userId);
 
       const localKEK = await generateLocalKEK();
       console.log("Local-KEK generated (non-extractable)");
 
-      await storeKey(LOCAL_KEK_KEY_NAME, localKEK);
+      const keyName = buildLocalKEKKeyName(userId);
+      await storeKey(keyName, localKEK);
       console.log("Local-KEK stored successfully");
 
-      const wrappedUMK = await wrapUMK(umk, localKEK);
+      const umk = await generateUMK();
+      console.log("UMK generated:", umk.length, "bytes");
+
+      const wrapAAD = buildUMKWrapAAD(userId);
+      const wrappedUMK = await wrapUMK(umk, localKEK, wrapAAD);
       console.log("UMK wrapped successfully");
 
-      const response = await register(username, wrappedUMK);
-      console.log("Registration successful, Device ID:", response.device_id);
+      storeUMK(umk);
+      console.log("UMK stored locally for active session");
+
+      const completeResponse = await registerFinalize(wrappedUMK);
+      console.log("Registration finalized, Device ID:", completeResponse.device_id);
 
       // Save device ID to LocalStorage
-      saveDeviceId(response.device_id);
+      if (!completeResponse.device_id) {
+        throw new Error("Registration did not return a device identifier");
+      }
+
+      saveDeviceId(completeResponse.device_id);
       console.log("Device ID saved to LocalStorage");
 
       setSuccessMessage(
-        "Registration successful! Your encryption keys have been generated. You can now log in.",
+        "Registration successful! You can now start syncing messages on this device.",
       );
       setUsername("");
+      onLoginSuccess();
     } catch (err) {
       const errorMessage =
         err instanceof Error

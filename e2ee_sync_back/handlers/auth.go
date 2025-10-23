@@ -26,17 +26,27 @@ func NewAuthHandler(userStore *store.UserStore, sessionStore *store.SessionStore
 	}
 }
 
-// RegisterRequest represents the registration request body
+// RegisterInitRequest represents the initial registration payload
+type RegisterInitRequest struct {
+	Username string `json:"username"`
+}
+
+// RegisterInitResponse carries user identity back to the client
+type RegisterInitResponse struct {
+	UserID   uuid.UUID `json:"user_id"`
+	Username string    `json:"username"`
+}
+
+// RegisterRequest represents the final registration payload
 type RegisterRequest struct {
-	Username   string `json:"username"`
-	WrappedUMK string `json:"wrapped_umk"` // Base64-encoded wrapped UMK
+	WrappedUMK string `json:"wrapped_umk"`
 }
 
 // RegisterResponse represents the registration response
 type RegisterResponse struct {
-	UserID   uuid.UUID `json:"user_id"`
-	Username string    `json:"username"`
-	DeviceID uuid.UUID `json:"device_id"`
+	UserID   uuid.UUID  `json:"user_id"`
+	Username string     `json:"username"`
+	DeviceID *uuid.UUID `json:"device_id,omitempty"`
 }
 
 // LoginRequest represents the login request body
@@ -58,9 +68,9 @@ type SessionResponse struct {
 	Username string    `json:"username"`
 }
 
-// Register handles user registration
-func (h *AuthHandler) Register(c echo.Context) error {
-	var req RegisterRequest
+// Register handles user registration and device provisioning
+func (h *AuthHandler) RegisterInit(c echo.Context) error {
+	var req RegisterInitRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 	}
@@ -69,26 +79,61 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "username is required")
 	}
 
+	if _, exists := h.userStore.FindByUsername(req.Username); exists {
+		return echo.NewHTTPError(http.StatusConflict, "username already exists")
+	}
+
+	user := h.userStore.Create(req.Username)
+	session := h.sessionStore.Create(user.ID)
+
+	cookie := &http.Cookie{
+		Name:     middleware.SessionCookieName,
+		Value:    session.ID,
+		Expires:  session.ExpiresAt,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+	}
+	c.SetCookie(cookie)
+
+	return c.JSON(http.StatusCreated, RegisterInitResponse{
+		UserID:   user.ID,
+		Username: user.Username,
+	})
+}
+
+// Register handles device key registration after initialization
+func (h *AuthHandler) Register(c echo.Context) error {
+	var req RegisterRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
+	}
+
 	if req.WrappedUMK == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "wrapped_umk is required")
 	}
 
-	// Check if user already exists
-	_, exists := h.userStore.FindByUsername(req.Username)
-	if exists {
-		return echo.NewHTTPError(http.StatusConflict, "username already exists")
+	cookie, err := c.Cookie(middleware.SessionCookieName)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "registration session not found")
 	}
 
-	// Create new user
-	user := h.userStore.Create(req.Username)
+	session, exists := h.sessionStore.FindByID(cookie.Value)
+	if !exists {
+		return echo.NewHTTPError(http.StatusUnauthorized, "registration session expired")
+	}
 
-	// Create device with WrappedUMK
+	user, exists := h.userStore.FindByID(session.UserID)
+	if !exists {
+		return echo.NewHTTPError(http.StatusNotFound, "user not found")
+	}
+
 	device := h.deviceStore.Create(user.ID, req.WrappedUMK)
 
 	return c.JSON(http.StatusCreated, RegisterResponse{
 		UserID:   user.ID,
 		Username: user.Username,
-		DeviceID: device.ID,
+		DeviceID: &device.ID,
 	})
 }
 

@@ -1,6 +1,12 @@
 import { getSodium } from "../utils/sodium";
 
-export const LOCAL_KEK_KEY_NAME = "local-kek";
+const textEncoder = new TextEncoder();
+
+const LOCAL_KEK_KEY_PREFIX = "local-kek:";
+
+export function buildLocalKEKKeyName(userId: string): string {
+  return `${LOCAL_KEK_KEY_PREFIX}${userId}`;
+}
 
 export async function generateUMK(): Promise<Uint8Array> {
   const sodium = await getSodium();
@@ -14,16 +20,21 @@ export async function generateLocalKEK(): Promise<CryptoKey> {
       name: "AES-GCM",
       length: 256,
     },
-    false, // extractable
+    false,
     ["wrapKey", "unwrapKey"],
   );
 
   return key;
 }
 
+export function buildUMKWrapAAD(userId: string): Uint8Array {
+  return textEncoder.encode(userId);
+}
+
 export async function wrapUMK(
   umk: Uint8Array,
   localKEK: CryptoKey,
+  aad: Uint8Array,
 ): Promise<string> {
   const umkKey = await crypto.subtle.importKey(
     "raw",
@@ -40,6 +51,7 @@ export async function wrapUMK(
   const wrappedKey = await crypto.subtle.wrapKey("raw", umkKey, localKEK, {
     name: "AES-GCM",
     iv: iv,
+    additionalData: aad,
   });
 
   const combined = new Uint8Array(iv.length + wrappedKey.byteLength);
@@ -52,6 +64,7 @@ export async function wrapUMK(
 export async function unwrapUMK(
   wrappedUMKBase64: string,
   localKEK: CryptoKey,
+  aad: Uint8Array,
 ): Promise<Uint8Array> {
   const combined = base64ToArrayBuffer(wrappedUMKBase64);
 
@@ -65,6 +78,7 @@ export async function unwrapUMK(
     {
       name: "AES-GCM",
       iv: iv,
+      additionalData: aad,
     },
     {
       name: "AES-GCM",

@@ -36,6 +36,7 @@ func main() {
 	}))
 
 	// Public routes
+	e.POST("/api/register/init", authHandler.RegisterInit)
 	e.POST("/api/register", authHandler.Register)
 	e.POST("/api/login", authHandler.Login)
 	e.GET("/api/debug", debugHandler.GetDebugInfo)
