@@ -10,7 +10,7 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   user_id: string;
   username: string;
-  device_id?: string;
+  device_id: string;
 }
 
 export interface RegisterInitRequest {

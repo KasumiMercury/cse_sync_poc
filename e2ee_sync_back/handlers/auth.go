@@ -44,9 +44,9 @@ type RegisterRequest struct {
 
 // RegisterResponse represents the registration response
 type RegisterResponse struct {
-	UserID   uuid.UUID  `json:"user_id"`
-	Username string     `json:"username"`
-	DeviceID *uuid.UUID `json:"device_id,omitempty"`
+	UserID   uuid.UUID `json:"user_id"`
+	Username string    `json:"username"`
+	DeviceID uuid.UUID `json:"device_id"`
 }
 
 // LoginRequest represents the login request body
@@ -133,7 +133,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	return c.JSON(http.StatusCreated, RegisterResponse{
 		UserID:   user.ID,
 		Username: user.Username,
-		DeviceID: &device.ID,
+		DeviceID: device.ID,
 	})
 }
 
