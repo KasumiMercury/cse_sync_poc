@@ -3,6 +3,7 @@ import {
   generateLocalKEK,
   generateUMK,
   LOCAL_KEK_KEY_NAME,
+  storeUMK,
   unwrapUMK,
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
@@ -59,6 +60,7 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       const response = await login(username);
 
       const umk = await unwrapUMK(response.wrapped_umk, localKEK);
+      storeUMK(umk);
 
       console.log("UMK successfully unwrapped:", umk.length, "bytes");
       console.log("Device ID from server:", response.device_id);

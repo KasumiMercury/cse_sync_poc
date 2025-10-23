@@ -22,15 +22,16 @@ func NewMessageStore() *MessageStore {
 }
 
 // Create creates a new message
-func (s *MessageStore) Create(userID uuid.UUID, content string) *models.Message {
+func (s *MessageStore) Create(userID uuid.UUID, content string, nonce string) *models.Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	message := &models.Message{
-		ID:        uuid.New(),
-		UserID:    userID,
-		Content:   content,
-		CreatedAt: time.Now(),
+		ID:               uuid.New(),
+		UserID:           userID,
+		EncryptedContent: content,
+		Nonce:            nonce,
+		CreatedAt:        time.Now(),
 	}
 
 	s.messages[message.ID] = message

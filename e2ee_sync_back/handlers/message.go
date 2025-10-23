@@ -26,6 +26,7 @@ func NewMessageHandler(userStore *store.UserStore, messageStore *store.MessageSt
 // SendMessageRequest represents the message creation request body
 type SendMessageRequest struct {
 	Content string `json:"content"`
+	Nonce   string `json:"nonce"`
 }
 
 // SendMessage handles message creation
@@ -45,7 +46,7 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	}
 
 	// Create message
-	message := h.messageStore.Create(userID, req.Content)
+	message := h.messageStore.Create(userID, req.Content, req.Nonce)
 
 	return c.JSON(http.StatusCreated, message)
 }

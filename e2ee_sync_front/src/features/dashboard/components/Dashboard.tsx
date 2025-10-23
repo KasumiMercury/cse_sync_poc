@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
 import { getMessages, sendMessage } from "../api/messageApi";
@@ -17,11 +17,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadMessages();
-  }, []);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     try {
       const fetchedMessages = await getMessages();
       setMessages(fetchedMessages);
@@ -30,7 +26,11 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
       console.error("Failed to load messages:", err);
       setError("Failed to load messages");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

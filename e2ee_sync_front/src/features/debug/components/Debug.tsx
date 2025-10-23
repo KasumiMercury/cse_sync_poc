@@ -262,7 +262,10 @@ export function Debug({ onBack }: DebugProps) {
                           User ID
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Content
+                          Encrypted Content (Preview)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Nonce (Preview)
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Created At
@@ -278,8 +281,15 @@ export function Debug({ onBack }: DebugProps) {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                             {message.user_id}
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="max-w-md">{message.content}</div>
+                          <td className="px-6 py-4 text-sm font-mono text-gray-900">
+                            <div className="max-w-xs truncate">
+                              {message.encrypted_content?.substring(0, 40) || "N/A"}...
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-mono text-gray-900">
+                            <div className="max-w-xs truncate">
+                              {message.nonce?.substring(0, 40) || "N/A"}...
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {formatDateTime(message.created_at)}

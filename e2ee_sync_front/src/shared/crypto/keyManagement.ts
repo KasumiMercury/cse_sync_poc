@@ -95,3 +95,14 @@ function base64ToArrayBuffer(base64: string): Uint8Array {
   }
   return bytes;
 }
+
+// singleton pattern for UMK storage in memory
+let storedUMK: Uint8Array | null = null;
+
+export function storeUMK(umk: Uint8Array): void {
+  storedUMK = umk;
+}
+
+export function retrieveUMK(): Uint8Array | null {
+  return storedUMK;
+}

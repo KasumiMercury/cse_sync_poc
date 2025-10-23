@@ -20,7 +20,8 @@ export interface DebugDevice {
 export interface DebugMessage {
   id: string;
   user_id: string;
-  content: string;
+  encrypted_content: string;
+  nonce: string;
   created_at: string;
 }
 
