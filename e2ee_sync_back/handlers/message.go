@@ -51,14 +51,14 @@ func (h *MessageHandler) SendMessage(c echo.Context) error {
 	return c.JSON(http.StatusCreated, message)
 }
 
-// GetMessages returns all messages
+// GetMessages returns all messages for the authenticated user
 func (h *MessageHandler) GetMessages(c echo.Context) error {
-	_, ok := c.Get(middleware.UserIDContextKey).(uuid.UUID)
+	userID, ok := c.Get(middleware.UserIDContextKey).(uuid.UUID)
 	if !ok {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid session")
 	}
 
-	messages := h.messageStore.GetAll()
+	messages := h.messageStore.FindByUserID(userID)
 
 	return c.JSON(http.StatusOK, messages)
 }
