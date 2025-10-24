@@ -20,6 +20,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userStore, sessionStore, deviceStore)
 	messageHandler := handlers.NewMessageHandler(userStore, messageStore)
+	deviceHandler := handlers.NewDeviceHandler(deviceStore)
 	debugHandler := handlers.NewDebugHandler(userStore, sessionStore, deviceStore, messageStore)
 
 	// Create Echo instance
@@ -48,6 +49,7 @@ func main() {
 	protected.POST("/logout", authHandler.Logout)
 	protected.POST("/messages", messageHandler.SendMessage)
 	protected.GET("/messages", messageHandler.GetMessages)
+	protected.GET("/devices/:deviceID", deviceHandler.GetDevice)
 
 	// Start cleanup goroutine
 	go func() {
