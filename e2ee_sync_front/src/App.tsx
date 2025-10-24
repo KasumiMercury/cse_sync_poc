@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSession, LoginForm, type SessionInfo } from "./features/auth";
+import { ensureUMKForSession } from "./features/auth/utils/umkSession";
 import { Dashboard } from "./features/dashboard";
 import { Debug } from "./features/debug";
 
@@ -13,9 +14,13 @@ function App() {
   const checkSession = useCallback(async () => {
     try {
       const sessionInfo = await getSession();
+      console.log("Session validated successfully for user:", sessionInfo.user_id);
+      await ensureUMKForSession(sessionInfo);
+      console.log("UMK ensured for session");
       setSession(sessionInfo);
       setCurrentPage("dashboard");
-    } catch {
+    } catch (error) {
+      console.error("Session validation failed:", error);
       setSession(null);
       setCurrentPage("login");
     } finally {

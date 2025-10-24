@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clearStoredUMK } from "../../../shared/crypto/keyManagement";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
 import { getMessages, sendMessage } from "../api/messageApi";
@@ -54,6 +55,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
     setIsLoading(true);
     try {
       await logout();
+      clearStoredUMK();
       onLogout();
     } catch (err) {
       console.error("Logout failed:", err);
