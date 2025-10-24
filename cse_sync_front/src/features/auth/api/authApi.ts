@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../../../shared/constants/api";
 import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
-import type { DeviceInfo } from "../types/device";
+import type { DeviceInfo, DeviceRegistrationResponse } from "../types/device";
 import type {
   LoginRequest,
   LoginResponse,
@@ -64,18 +64,61 @@ export async function registerFinalize(
   return response.json();
 }
 
-export async function login(username: string): Promise<LoginResponse> {
+export async function login(
+  username: string,
+  deviceId?: string,
+): Promise<LoginResponse> {
+  const payload: LoginRequest = { username };
+  if (deviceId) {
+    payload.device_id = deviceId;
+  }
+
   const response = await fetch(`${API_BASE_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify({ username } as LoginRequest),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     throw new Error("Login failed");
+  }
+
+  return response.json();
+}
+
+export async function registerDevice(
+  wrappedUMK: string,
+): Promise<DeviceRegistrationResponse> {
+  const response = await fetch(`${API_BASE_URL}/devices`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ wrapped_umk: wrappedUMK }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Device registration failed");
+  }
+
+  return response.json();
+}
+
+export async function getRecovery(): Promise<PassphraseRecoveryPayload> {
+  const response = await fetch(`${API_BASE_URL}/recovery`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Recovery data not found. Complete passphrase setup on another device.");
+    }
+    throw new Error("Failed to fetch recovery data");
   }
 
   return response.json();

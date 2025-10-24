@@ -5,20 +5,36 @@ import {
   createPassphraseRecoveryPayload,
   generateLocalKEK,
   generateUMK,
+  recoverUMKWithPassphrase,
   storeUMK,
   unwrapUMK,
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
+import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
 import { getKey, storeKey } from "../../../shared/db/indexedDB";
 import {
   getDeviceId,
+  clearDeviceId,
   saveDeviceId,
 } from "../../../shared/storage/deviceStorage";
-import { login, registerFinalize, registerInit } from "../api/authApi";
+import {
+  login,
+  getDevice,
+  getRecovery,
+  registerDevice,
+  registerFinalize,
+  registerInit,
+} from "../api/authApi";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
   onShowDebug: () => void;
+}
+
+interface NewDeviceContext {
+  userId: string;
+  username: string;
+  recovery: PassphraseRecoveryPayload;
 }
 
 export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
@@ -30,9 +46,14 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
   const [passphrase, setPassphrase] = useState("");
   const [passphraseConfirm, setPassphraseConfirm] = useState("");
   const [passphraseError, setPassphraseError] = useState("");
+  const [isNewDeviceModalOpen, setIsNewDeviceModalOpen] = useState(false);
+  const [newDevicePassphrase, setNewDevicePassphrase] = useState("");
+  const [newDeviceError, setNewDeviceError] = useState("");
+  const [newDeviceContext, setNewDeviceContext] = useState<NewDeviceContext | null>(null);
   const usernameId = useId();
   const passphraseId = useId();
   const passphraseConfirmId = useId();
+  const newDevicePassphraseId = useId();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,27 +68,60 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setSuccessMessage("");
 
     try {
-      const response = await login(username);
+      const storedDeviceId = getDeviceId();
+      const response = await login(username, storedDeviceId ?? undefined);
+
+      if (response.requires_device_registration) {
+        if (storedDeviceId) {
+          clearDeviceId();
+        }
+
+        if (!response.recovery_available) {
+          throw new Error(
+            "No registered device found and recovery passphrase has not been set on any device.",
+          );
+        }
+
+        await prepareNewDevice(response.user_id, response.username);
+        return;
+      }
+
+      const effectiveDeviceId = storedDeviceId ?? response.device_id ?? null;
+      if (!effectiveDeviceId) {
+        if (response.recovery_available) {
+          await prepareNewDevice(response.user_id, response.username);
+          return;
+        }
+        throw new Error(
+          "Device identifier missing. Please register this device using your recovery passphrase.",
+        );
+      }
 
       const keyName = buildLocalKEKKeyName(response.user_id);
       const localKEK = await getKey(keyName);
 
       if (!localKEK) {
+        if (response.recovery_available) {
+          clearDeviceId();
+          await prepareNewDevice(response.user_id, response.username);
+          return;
+        }
+
         throw new Error(
-          "Local encryption key not found. Please register on this device first.",
+          "Local encryption key not found and no recovery passphrase is available.",
         );
       }
 
+      const deviceInfo = await getDevice(effectiveDeviceId);
       const wrapAAD = buildUMKWrapAAD(response.user_id);
-      const umk = await unwrapUMK(response.wrapped_umk, localKEK, wrapAAD);
+      const umk = await unwrapUMK(deviceInfo.wrapped_umk, localKEK, wrapAAD);
       storeUMK(umk);
 
       console.log("UMK successfully unwrapped:", umk.length, "bytes");
-      console.log("Device ID from server:", response.device_id);
+      console.log("Device ID used for login:", effectiveDeviceId);
 
-      const storedDeviceId = getDeviceId();
-      if (!storedDeviceId || storedDeviceId !== response.device_id) {
-        saveDeviceId(response.device_id);
+      if (!storedDeviceId || storedDeviceId !== effectiveDeviceId) {
+        saveDeviceId(effectiveDeviceId);
         console.log("Device ID saved to LocalStorage");
       }
 
@@ -86,6 +140,31 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setPassphrase("");
     setPassphraseConfirm("");
     setPassphraseError("");
+  };
+
+  const resetNewDeviceState = () => {
+    setNewDevicePassphrase("");
+    setNewDeviceError("");
+  };
+
+  const prepareNewDevice = async (userId: string, usernameValue: string) => {
+    try {
+      const recoveryPayload = await getRecovery();
+      setNewDeviceContext({
+        userId,
+        username: usernameValue,
+        recovery: recoveryPayload,
+      });
+      resetNewDeviceState();
+      setIsNewDeviceModalOpen(true);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to load recovery data. Please try again.";
+      setError(message);
+      console.error(err);
+    }
   };
 
   const handleRegister = () => {
@@ -198,8 +277,145 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     await completeRegistration(passphrase);
   };
 
+  const handleNewDeviceModalClose = () => {
+    if (isLoading) {
+      return;
+    }
+    setIsNewDeviceModalOpen(false);
+    resetNewDeviceState();
+    setNewDeviceContext(null);
+  };
+
+  const handleNewDeviceSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ) => {
+    e.preventDefault();
+
+    if (!newDevicePassphrase.trim()) {
+      setNewDeviceError("Passphrase is required");
+      return;
+    }
+
+    if (newDevicePassphrase.length < 8) {
+      setNewDeviceError("Passphrase must be at least 8 characters");
+      return;
+    }
+
+    if (!newDeviceContext) {
+      setNewDeviceError(
+        "Unable to prepare device registration. Please try logging in again.",
+      );
+      return;
+    }
+
+    setNewDeviceError("");
+    setError("");
+    setSuccessMessage("");
+    setIsLoading(true);
+
+    try {
+      const umk = await recoverUMKWithPassphrase(
+        newDevicePassphrase,
+        newDeviceContext.recovery,
+      );
+
+      console.log("UMK recovered from passphrase for", newDeviceContext.username);
+
+      const localKEK = await generateLocalKEK();
+      const keyName = buildLocalKEKKeyName(newDeviceContext.userId);
+      await storeKey(keyName, localKEK);
+      console.log("Local-KEK generated and stored for", newDeviceContext.username);
+
+      const wrapAAD = buildUMKWrapAAD(newDeviceContext.userId);
+      const wrappedUMK = await wrapUMK(umk, localKEK, wrapAAD);
+      storeUMK(umk);
+
+      const registrationResponse = await registerDevice(wrappedUMK);
+      saveDeviceId(registrationResponse.device_id);
+      console.log("New device registered with ID", registrationResponse.device_id);
+
+      setIsNewDeviceModalOpen(false);
+      resetNewDeviceState();
+      setNewDeviceContext(null);
+      setUsername("");
+
+      onLoginSuccess();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to register this device. Please try again.";
+      setNewDeviceError(message);
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      {isNewDeviceModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Register This Device
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Enter the recovery passphrase you created previously to unlock
+                your master key and finish adding this device.
+              </p>
+              {newDeviceContext && (
+                <p className="text-xs text-gray-500 mt-1">
+                  User: {newDeviceContext.username}
+                </p>
+              )}
+            </div>
+
+            {newDeviceError && (
+              <div className="text-red-600 text-sm">{newDeviceError}</div>
+            )}
+
+            <form onSubmit={handleNewDeviceSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor={newDevicePassphraseId}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Recovery Passphrase
+                </label>
+                <input
+                  type="password"
+                  id={newDevicePassphraseId}
+                  value={newDevicePassphrase}
+                  onChange={(e) => setNewDevicePassphrase(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter your recovery passphrase"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={handleNewDeviceModalClose}
+                  className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Registering..." : "Register Device"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isPassphraseModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 space-y-4">
