@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../../shared/constants/api";
+import type { DeviceInfo } from "../types/device";
 import type {
   LoginRequest,
   LoginResponse,
@@ -98,4 +99,23 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     throw new Error("Logout failed");
   }
+}
+
+export async function getDevice(deviceId: string): Promise<DeviceInfo> {
+  const response = await fetch(`${API_BASE_URL}/devices/${deviceId}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Device not found");
+    }
+    if (response.status === 403) {
+      throw new Error("Device does not belong to this session");
+    }
+    throw new Error("Failed to fetch device info");
+  }
+
+  return response.json();
 }

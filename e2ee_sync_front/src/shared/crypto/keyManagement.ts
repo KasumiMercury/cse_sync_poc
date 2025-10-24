@@ -120,3 +120,7 @@ export function storeUMK(umk: Uint8Array): void {
 export function retrieveUMK(): Uint8Array | null {
   return storedUMK;
 }
+
+export function clearStoredUMK(): void {
+  storedUMK = null;
+}
