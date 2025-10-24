@@ -98,6 +98,9 @@ export function Debug({ onBack }: DebugProps) {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Username
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Recovery Payload
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -108,6 +111,33 @@ export function Debug({ onBack }: DebugProps) {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.username}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {user.recovery_wrapped_umk ? (
+                              <div className="font-mono text-xs space-y-1">
+                                <div>
+                                  Salt:{" "}
+                                  {user.recovery_salt
+                                    ? `${user.recovery_salt.substring(0, 12)}...`
+                                    : "N/A"}
+                                </div>
+                                <div>
+                                  IV:{" "}
+                                  {user.recovery_iv
+                                    ? `${user.recovery_iv.substring(0, 12)}...`
+                                    : "N/A"}
+                                </div>
+                                <div>
+                                  UMK:{" "}
+                                  {`${user.recovery_wrapped_umk.substring(
+                                    0,
+                                    20,
+                                  )}...`}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">Not set</span>
+                            )}
                           </td>
                         </tr>
                       ))}

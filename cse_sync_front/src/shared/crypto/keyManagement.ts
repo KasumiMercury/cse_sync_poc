@@ -3,6 +3,22 @@ import { getSodium } from "../utils/sodium";
 const textEncoder = new TextEncoder();
 
 const LOCAL_KEK_KEY_PREFIX = "local-kek:";
+const UMK_BYTE_LENGTH = 32;
+const AES_GCM_ALGORITHM = "AES-GCM";
+const AES_GCM_IV_LENGTH = 12;
+
+const PASSPHRASE_SALT_LENGTH = 16;
+const PASSPHRASE_ITERATIONS = 310000;
+const PASSPHRASE_KEY_LENGTH = 256;
+const PASSPHRASE_HASH = "SHA-256";
+
+export interface PassphraseRecoveryPayload {
+  wrapped_umk: string;
+  salt: string;
+  iv: string;
+}
+
+let storedUMK: Uint8Array | null = null;
 
 export function buildLocalKEKKeyName(userId: string): string {
   return `${LOCAL_KEK_KEY_PREFIX}${userId}`;
@@ -10,21 +26,18 @@ export function buildLocalKEKKeyName(userId: string): string {
 
 export async function generateUMK(): Promise<Uint8Array> {
   const sodium = await getSodium();
-  // Generate 32 random bytes for UMK
-  return sodium.randombytes_buf(32);
+  return sodium.randombytes_buf(UMK_BYTE_LENGTH);
 }
 
 export async function generateLocalKEK(): Promise<CryptoKey> {
-  const key = await crypto.subtle.generateKey(
+  return crypto.subtle.generateKey(
     {
-      name: "AES-GCM",
-      length: 256,
+      name: AES_GCM_ALGORITHM,
+      length: PASSPHRASE_KEY_LENGTH,
     },
     false,
     ["wrapKey", "unwrapKey"],
   );
-
-  return key;
 }
 
 export function buildUMKWrapAAD(userId: string): Uint8Array {
@@ -36,29 +49,16 @@ export async function wrapUMK(
   localKEK: CryptoKey,
   aad: Uint8Array,
 ): Promise<string> {
-  const umkKey = await crypto.subtle.importKey(
-    "raw",
-    umk,
-    {
-      name: "AES-GCM",
-    },
-    true, // extractable
-    ["encrypt", "decrypt"],
-  );
-
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const umkKey = await importAesKey(umk, true);
+  const iv = randomBytes(AES_GCM_IV_LENGTH);
 
   const wrappedKey = await crypto.subtle.wrapKey("raw", umkKey, localKEK, {
-    name: "AES-GCM",
-    iv: iv,
+    name: AES_GCM_ALGORITHM,
+    iv,
     additionalData: aad,
   });
 
-  const combined = new Uint8Array(iv.length + wrappedKey.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(wrappedKey), iv.length);
-
-  return arrayBufferToBase64(combined);
+  return bytesToBase64(concatBytes(iv, new Uint8Array(wrappedKey)));
 }
 
 export async function unwrapUMK(
@@ -66,52 +66,29 @@ export async function unwrapUMK(
   localKEK: CryptoKey,
   aad: Uint8Array,
 ): Promise<Uint8Array> {
-  const combined = base64ToArrayBuffer(wrappedUMKBase64);
-
-  const iv = combined.slice(0, 12);
-  const wrappedKey = combined.slice(12);
+  const combined = base64ToBytes(wrappedUMKBase64);
+  const iv = combined.slice(0, AES_GCM_IV_LENGTH);
+  const wrappedKey = combined.slice(AES_GCM_IV_LENGTH);
 
   const umkKey = await crypto.subtle.unwrapKey(
     "raw",
     wrappedKey,
     localKEK,
     {
-      name: "AES-GCM",
-      iv: iv,
+      name: AES_GCM_ALGORITHM,
+      iv,
       additionalData: aad,
     },
     {
-      name: "AES-GCM",
+      name: AES_GCM_ALGORITHM,
     },
-    true, // extractable: true
+    true,
     ["encrypt", "decrypt"],
   );
 
   const umkArrayBuffer = await crypto.subtle.exportKey("raw", umkKey);
   return new Uint8Array(umkArrayBuffer);
 }
-
-function arrayBufferToBase64(buffer: Uint8Array): string {
-  let binary = "";
-  const len = buffer.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(buffer[i]);
-  }
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-// singleton pattern for UMK storage in memory
-let storedUMK: Uint8Array | null = null;
 
 export function storeUMK(umk: Uint8Array): void {
   storedUMK = umk;
@@ -124,4 +101,129 @@ export function retrieveUMK(): Uint8Array | null {
 export function clearStoredUMK(): void {
   storedUMK = null;
   console.log("Stored UMK cleared from memory");
+}
+
+export async function createPassphraseRecoveryPayload(
+  passphrase: string,
+  umk: Uint8Array,
+): Promise<PassphraseRecoveryPayload> {
+  const salt = randomBytes(PASSPHRASE_SALT_LENGTH);
+  const iv = randomBytes(AES_GCM_IV_LENGTH);
+
+  const passphraseKey = await derivePassphraseKey(passphrase, salt);
+  const encrypted = await crypto.subtle.encrypt(
+    {
+      name: AES_GCM_ALGORITHM,
+      iv,
+    },
+    passphraseKey,
+    umk,
+  );
+
+  return {
+    wrapped_umk: bytesToBase64(new Uint8Array(encrypted)),
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+  };
+}
+
+export async function recoverUMKWithPassphrase(
+  passphrase: string,
+  payload: PassphraseRecoveryPayload,
+): Promise<Uint8Array> {
+  const salt = base64ToBytes(payload.salt);
+  const iv = base64ToBytes(payload.iv);
+  const encrypted = base64ToBytes(payload.wrapped_umk);
+
+  const passphraseKey = await derivePassphraseKey(passphrase, salt);
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: AES_GCM_ALGORITHM,
+      iv,
+    },
+    passphraseKey,
+    encrypted,
+  );
+
+  return new Uint8Array(decrypted);
+}
+
+async function importAesKey(
+  keyMaterial: Uint8Array,
+  extractable: boolean,
+): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    keyMaterial,
+    { name: AES_GCM_ALGORITHM },
+    extractable,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function derivePassphraseKey(
+  passphrase: string,
+  salt: Uint8Array,
+): Promise<CryptoKey> {
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    textEncoder.encode(passphrase),
+    {
+      name: "PBKDF2",
+    },
+    false,
+    ["deriveKey"],
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: PASSPHRASE_ITERATIONS,
+      hash: PASSPHRASE_HASH,
+    },
+    baseKey,
+    {
+      name: AES_GCM_ALGORITHM,
+      length: PASSPHRASE_KEY_LENGTH,
+    },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+function randomBytes(length: number): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(length));
+}
+
+function concatBytes(...buffers: Uint8Array[]): Uint8Array {
+  const totalLength = buffers.reduce((acc, current) => acc + current.length, 0);
+  const combined = new Uint8Array(totalLength);
+
+  let offset = 0;
+  for (const buffer of buffers) {
+    combined.set(buffer, offset);
+    offset += buffer.length;
+  }
+
+  return combined;
+}
+
+function bytesToBase64(data: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
 }

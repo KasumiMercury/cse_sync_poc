@@ -4,3 +4,8 @@ export interface DeviceInfo {
   wrapped_umk: string;
   created_at: string;
 }
+
+export interface DeviceRegistrationResponse {
+  device_id: string;
+  created_at: string;
+}

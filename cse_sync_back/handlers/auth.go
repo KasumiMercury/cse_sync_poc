@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/KasumiMercury/cse_sync_poc/cse_sync_back/middleware"
+	"github.com/KasumiMercury/cse_sync_poc/cse_sync_back/models"
 	"github.com/KasumiMercury/cse_sync_poc/cse_sync_back/store"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -37,9 +38,17 @@ type RegisterInitResponse struct {
 	Username string    `json:"username"`
 }
 
+// RecoveryPayload represents the UMK recovery payload encrypted with a passphrase
+type RecoveryPayload struct {
+	WrappedUMK string `json:"wrapped_umk"`
+	Salt       string `json:"salt"`
+	IV         string `json:"iv"`
+}
+
 // RegisterRequest represents the final registration payload
 type RegisterRequest struct {
-	WrappedUMK string `json:"wrapped_umk"`
+	WrappedUMK string          `json:"wrapped_umk"`
+	Recovery   RecoveryPayload `json:"recovery"`
 }
 
 // RegisterResponse represents the registration response
@@ -52,14 +61,17 @@ type RegisterResponse struct {
 // LoginRequest represents the login request body
 type LoginRequest struct {
 	Username string `json:"username"`
+	DeviceID string `json:"device_id,omitempty"`
 }
 
 // LoginResponse represents the login response
 type LoginResponse struct {
-	UserID     uuid.UUID `json:"user_id"`
-	Username   string    `json:"username"`
-	DeviceID   uuid.UUID `json:"device_id"`
-	WrappedUMK string    `json:"wrapped_umk"` // Base64-encoded wrapped UMK
+	UserID                     uuid.UUID `json:"user_id"`
+	Username                   string    `json:"username"`
+	DeviceID                   *string   `json:"device_id,omitempty"`
+	DeviceVerified             bool      `json:"device_verified"`
+	RequiresDeviceRegistration bool      `json:"requires_device_registration"`
+	RecoveryAvailable          bool      `json:"recovery_available"`
 }
 
 // SessionResponse represents the session info response
@@ -113,6 +125,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "wrapped_umk is required")
 	}
 
+	if req.Recovery.WrappedUMK == "" || req.Recovery.Salt == "" || req.Recovery.IV == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "recovery payload is required")
+	}
+
 	cookie, err := c.Cookie(middleware.SessionCookieName)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "registration session not found")
@@ -126,6 +142,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	user, exists := h.userStore.FindByID(session.UserID)
 	if !exists {
 		return echo.NewHTTPError(http.StatusNotFound, "user not found")
+	}
+
+	if _, ok := h.userStore.UpdateRecoveryData(user.ID, req.Recovery.WrappedUMK, req.Recovery.Salt, req.Recovery.IV); !ok {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to persist recovery data")
 	}
 
 	device := h.deviceStore.Create(user.ID, req.WrappedUMK)
@@ -154,15 +174,16 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "user not found")
 	}
 
-	// Find user's devices
-	devices := h.deviceStore.FindByUserID(user.ID)
-	if len(devices) == 0 {
-		return echo.NewHTTPError(http.StatusNotFound, "no device found for user")
+	var device *models.Device
+	if req.DeviceID != "" {
+		if deviceID, err := uuid.Parse(req.DeviceID); err == nil {
+			if foundDevice, ok := h.deviceStore.FindByID(deviceID); ok && foundDevice.UserID == user.ID {
+				device = foundDevice
+			}
+		}
 	}
 
-	// For PoC, use the first device
-	// In production, client should specify deviceID or handle multiple devices
-	device := devices[0]
+	requiresRegistration := device == nil
 
 	// Create session
 	session := h.sessionStore.Create(user.ID)
@@ -178,11 +199,44 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 	c.SetCookie(cookie)
 
+	var deviceIDPtr *string
+	if device != nil {
+		id := device.ID.String()
+		deviceIDPtr = &id
+	}
+
+	recoveryAvailable := user.RecoveryWrappedUMK != "" && user.RecoverySalt != "" && user.RecoveryIV != ""
+
 	return c.JSON(http.StatusOK, LoginResponse{
-		UserID:     user.ID,
-		Username:   user.Username,
-		DeviceID:   device.ID,
-		WrappedUMK: device.WrappedUMK,
+		UserID:                     user.ID,
+		Username:                   user.Username,
+		DeviceID:                   deviceIDPtr,
+		DeviceVerified:             device != nil,
+		RequiresDeviceRegistration: requiresRegistration,
+		RecoveryAvailable:          recoveryAvailable,
+	})
+}
+
+// GetRecovery returns the encrypted recovery payload for the authenticated user
+func (h *AuthHandler) GetRecovery(c echo.Context) error {
+	userID, ok := c.Get(middleware.UserIDContextKey).(uuid.UUID)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid session")
+	}
+
+	user, exists := h.userStore.FindByID(userID)
+	if !exists {
+		return echo.NewHTTPError(http.StatusNotFound, "user not found")
+	}
+
+	if user.RecoveryWrappedUMK == "" || user.RecoverySalt == "" || user.RecoveryIV == "" {
+		return echo.NewHTTPError(http.StatusNotFound, "recovery data not available")
+	}
+
+	return c.JSON(http.StatusOK, RecoveryPayload{
+		WrappedUMK: user.RecoveryWrappedUMK,
+		Salt:       user.RecoverySalt,
+		IV:         user.RecoveryIV,
 	})
 }
 

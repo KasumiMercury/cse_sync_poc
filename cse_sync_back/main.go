@@ -49,6 +49,8 @@ func main() {
 	protected.POST("/logout", authHandler.Logout)
 	protected.POST("/messages", messageHandler.SendMessage)
 	protected.GET("/messages", messageHandler.GetMessages)
+	protected.GET("/recovery", authHandler.GetRecovery)
+	protected.POST("/devices", deviceHandler.RegisterDevice)
 	protected.GET("/devices/:deviceID", deviceHandler.GetDevice)
 
 	// Start cleanup goroutine
