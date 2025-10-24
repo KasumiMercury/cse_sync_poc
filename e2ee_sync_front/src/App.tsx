@@ -14,7 +14,9 @@ function App() {
   const checkSession = useCallback(async () => {
     try {
       const sessionInfo = await getSession();
+      console.log("Session validated successfully for user:", sessionInfo.user_id);
       await ensureUMKForSession(sessionInfo);
+      console.log("UMK ensured for session");
       setSession(sessionInfo);
       setCurrentPage("dashboard");
     } catch (error) {

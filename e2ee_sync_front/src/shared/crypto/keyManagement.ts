@@ -123,4 +123,5 @@ export function retrieveUMK(): Uint8Array | null {
 
 export function clearStoredUMK(): void {
   storedUMK = null;
+  console.log("Stored UMK cleared from memory");
 }

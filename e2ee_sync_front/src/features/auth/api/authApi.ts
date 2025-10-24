@@ -117,5 +117,7 @@ export async function getDevice(deviceId: string): Promise<DeviceInfo> {
     throw new Error("Failed to fetch device info");
   }
 
-  return response.json();
+  const deviceInfo = await response.json();
+  console.log("Device fetched successfully:", deviceId);
+  return deviceInfo;
 }
