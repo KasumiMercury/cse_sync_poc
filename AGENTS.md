@@ -1,10 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- Backend (Go): `e2ee_sync_back/`
-  - Entry: `e2ee_sync_back/main.go`
+- Backend (Go): `cse_sync_back/`
+  - Entry: `cse_sync_back/main.go`
   - HTTP: Echo handlers in `handlers/`, session in `middleware/`, models in `models/`, in‑memory stores in `store/`
-- Frontend (React + TS + Vite): `e2ee_sync_front/`
+- Frontend (React + TS + Vite): `cse_sync_front/`
   - Entry: `src/main.tsx`, app shell: `src/App.tsx`
   - Features in `src/features/{auth,dashboard,debug}/` with `api/`, `components/`, `types/`
   - Shared constants: `src/shared/constants/`
@@ -13,13 +13,13 @@
 ## Build, Test, and Development Commands
 - Compose dev (hot reload both): `docker compose up`
 - Backend
-  - Run: `cd e2ee_sync_back && go run .`
-  - Build: `cd e2ee_sync_back && go build`
-  - Hot reload (Air): `cd e2ee_sync_back && air`
+  - Run: `cd cse_sync_back && go run .`
+  - Build: `cd cse_sync_back && go build`
+  - Hot reload (Air): `cd cse_sync_back && air`
 - Frontend
-  - Dev server: `cd e2ee_sync_front && pnpm dev`
-  - Build: `cd e2ee_sync_front && pnpm build`
-  - Lint: `cd e2ee_sync_front && pnpm lint`
+  - Dev server: `cd cse_sync_front && pnpm dev`
+  - Build: `cd cse_sync_front && pnpm build`
+  - Lint: `cd cse_sync_front && pnpm lint`
 
 ## Coding Style & Naming Conventions
 - Go: follow standard Go style; run `go fmt ./...` before pushing. Package names lower_snake, files lower_snake, exported types `PascalCase`, locals `camelCase`.
@@ -41,5 +41,5 @@
   - Test plan: exact commands and expected results.
 
 ## Security & Configuration Tips
-- PoC warning: in‑memory stores, public debug endpoint, no passwords/E2EE. Do not deploy as‑is.
-- CORS allows `http://localhost:5173`; frontend reads API base from `VITE_API_URL` (see `compose.yml`). Adjust for non‑docker dev in `e2ee_sync_front/src/shared/constants/api.ts`.
+- PoC warning: in‑memory stores, public debug endpoint, no passwords/CSE. Do not deploy as‑is.
+- CORS allows `http://localhost:5173`; frontend reads API base from `VITE_API_URL` (see `compose.yml`). Adjust for non‑docker dev in `cse_sync_front/src/shared/constants/api.ts`.

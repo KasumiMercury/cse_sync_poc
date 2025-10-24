@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a proof-of-concept (POC) for end-to-end encrypted synchronization, consisting of two main components:
-- **Frontend** (`e2ee_sync_front/`): React + TypeScript + Vite + TailwindCSS application
-- **Backend** (`e2ee_sync_back/`): Go backend with Echo framework
+This is a proof-of-concept (POC) for client-side encrypted synchronization, consisting of two main components:
+- **Frontend** (`cse_sync_front/`): React + TypeScript + Vite + TailwindCSS application
+- **Backend** (`cse_sync_back/`): Go backend with Echo framework
 
 ## Quick Start (Docker)
 
@@ -23,7 +23,7 @@ docker compose up
 
 ### Build Commands
 ```bash
-cd e2ee_sync_front
+cd cse_sync_front
 pnpm dev          # Start development server with HMR
 pnpm build        # TypeScript compilation + production build
 pnpm lint         # Run Biome linter
@@ -40,7 +40,7 @@ pnpm preview      # Preview production build
 
 ### Frontend Structure
 ```
-e2ee_sync_front/src/
+cse_sync_front/src/
 ├── App.tsx                 # Main app component with page routing
 ├── main.tsx               # Entry point
 ├── index.css              # TailwindCSS imports
@@ -85,7 +85,7 @@ e2ee_sync_front/src/
 
 ### Backend Commands
 ```bash
-cd e2ee_sync_back
+cd cse_sync_back
 go mod download   # Download dependencies
 go run .          # Run the application
 go build          # Build binary
@@ -94,7 +94,7 @@ air               # Run with hot reload (development)
 
 ### Backend Structure
 ```
-e2ee_sync_back/
+cse_sync_back/
 ├── main.go                # Entry point, routing, middleware setup
 ├── models/
 │   ├── user.go           # User model (UUID, Username)
@@ -170,7 +170,7 @@ e2ee_sync_back/
 - **backend**: Go backend with air hot reload (port 8080)
 - **frontend**: Vite dev server (port 5173)
 - **Volumes**: Source code mounted for hot reload
-- **Network**: `e2ee-network` for service communication
+- **Network**: `cse-network` for service communication
 
 ### Development Workflow
 1. `docker compose up` - Start all services
@@ -189,15 +189,15 @@ e2ee_sync_back/
 
 This is a **proof-of-concept** implementation:
 - ❌ No password authentication
-- ❌ No encryption (E2EE not yet implemented)
+- ❌ No encryption (CSE not yet implemented)
 - ❌ No data persistence
 - ❌ Debug endpoints publicly accessible
 - ❌ No rate limiting
 - ⚠️ **Never deploy this to production**
 
-## Future E2EE Implementation
+## Future CSE Implementation
 
-When implementing E2EE sync functionality:
+When implementing client-side encrypted sync functionality:
 - **Frontend**:
   - Encryption/decryption using Web Crypto API
   - Key derivation from user credentials
