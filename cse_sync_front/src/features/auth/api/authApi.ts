@@ -43,9 +43,10 @@ export async function registerFinalize(
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify(
-      { wrapped_umk: wrappedUMK, recovery } as RegisterRequest,
-    ),
+    body: JSON.stringify({
+      wrapped_umk: wrappedUMK,
+      recovery,
+    } as RegisterRequest),
   });
 
   if (!response.ok) {
@@ -116,7 +117,9 @@ export async function getRecovery(): Promise<PassphraseRecoveryPayload> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error("Recovery data not found. Complete passphrase setup on another device.");
+      throw new Error(
+        "Recovery data not found. Complete passphrase setup on another device.",
+      );
     }
     throw new Error("Failed to fetch recovery data");
   }

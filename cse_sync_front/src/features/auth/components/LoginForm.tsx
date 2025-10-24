@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
 import {
   buildLocalKEKKeyName,
   buildUMKWrapAAD,
@@ -10,17 +11,16 @@ import {
   unwrapUMK,
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
-import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
 import { getKey, storeKey } from "../../../shared/db/indexedDB";
 import {
-  getDeviceId,
   clearDeviceId,
+  getDeviceId,
   saveDeviceId,
 } from "../../../shared/storage/deviceStorage";
 import {
-  login,
   getDevice,
   getRecovery,
+  login,
   registerDevice,
   registerFinalize,
   registerInit,
@@ -49,7 +49,8 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
   const [isNewDeviceModalOpen, setIsNewDeviceModalOpen] = useState(false);
   const [newDevicePassphrase, setNewDevicePassphrase] = useState("");
   const [newDeviceError, setNewDeviceError] = useState("");
-  const [newDeviceContext, setNewDeviceContext] = useState<NewDeviceContext | null>(null);
+  const [newDeviceContext, setNewDeviceContext] =
+    useState<NewDeviceContext | null>(null);
   const usernameId = useId();
   const passphraseId = useId();
   const passphraseConfirmId = useId();
@@ -286,9 +287,7 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     setNewDeviceContext(null);
   };
 
-  const handleNewDeviceSubmit = async (
-    e: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const handleNewDeviceSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!newDevicePassphrase.trim()) {
@@ -319,12 +318,18 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
         newDeviceContext.recovery,
       );
 
-      console.log("UMK recovered from passphrase for", newDeviceContext.username);
+      console.log(
+        "UMK recovered from passphrase for",
+        newDeviceContext.username,
+      );
 
       const localKEK = await generateLocalKEK();
       const keyName = buildLocalKEKKeyName(newDeviceContext.userId);
       await storeKey(keyName, localKEK);
-      console.log("Local-KEK generated and stored for", newDeviceContext.username);
+      console.log(
+        "Local-KEK generated and stored for",
+        newDeviceContext.username,
+      );
 
       const wrapAAD = buildUMKWrapAAD(newDeviceContext.userId);
       const wrappedUMK = await wrapUMK(umk, localKEK, wrapAAD);
@@ -332,7 +337,10 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
 
       const registrationResponse = await registerDevice(wrappedUMK);
       saveDeviceId(registrationResponse.device_id);
-      console.log("New device registered with ID", registrationResponse.device_id);
+      console.log(
+        "New device registered with ID",
+        registrationResponse.device_id,
+      );
 
       setIsNewDeviceModalOpen(false);
       resetNewDeviceState();
@@ -433,9 +441,7 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
               <div className="text-red-600 text-sm">{passphraseError}</div>
             )}
 
-            {error && (
-              <div className="text-red-600 text-sm">{error}</div>
-            )}
+            {error && <div className="text-red-600 text-sm">{error}</div>}
 
             <form onSubmit={handlePassphraseSubmit} className="space-y-4">
               <div>
