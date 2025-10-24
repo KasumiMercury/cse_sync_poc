@@ -1,3 +1,5 @@
+import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
+
 export interface SessionInfo {
   user_id: string;
   username: string;
@@ -5,6 +7,7 @@ export interface SessionInfo {
 
 export interface RegisterRequest {
   wrapped_umk: string;
+  recovery: PassphraseRecoveryPayload;
 }
 
 export interface RegisterResponse {

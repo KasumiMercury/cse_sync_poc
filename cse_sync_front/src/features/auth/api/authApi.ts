@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../../shared/constants/api";
+import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
 import type { DeviceInfo } from "../types/device";
 import type {
   LoginRequest,
@@ -34,6 +35,7 @@ export async function registerInit(
 
 export async function registerFinalize(
   wrappedUMK: string,
+  recovery: PassphraseRecoveryPayload,
 ): Promise<RegisterResponse> {
   const response = await fetch(`${API_BASE_URL}/register`, {
     method: "POST",
@@ -41,7 +43,9 @@ export async function registerFinalize(
       "Content-Type": "application/json",
     },
     credentials: "include",
-    body: JSON.stringify({ wrapped_umk: wrappedUMK } as RegisterRequest),
+    body: JSON.stringify(
+      { wrapped_umk: wrappedUMK, recovery } as RegisterRequest,
+    ),
   });
 
   if (!response.ok) {

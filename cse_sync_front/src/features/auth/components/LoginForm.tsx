@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import {
   buildLocalKEKKeyName,
   buildUMKWrapAAD,
+  createPassphraseRecoveryPayload,
   generateLocalKEK,
   generateUMK,
   storeUMK,
@@ -25,7 +26,13 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isPassphraseModalOpen, setIsPassphraseModalOpen] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+  const [passphraseConfirm, setPassphraseConfirm] = useState("");
+  const [passphraseError, setPassphraseError] = useState("");
   const usernameId = useId();
+  const passphraseId = useId();
+  const passphraseConfirmId = useId();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,12 +82,25 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     }
   };
 
-  const handleRegister = async () => {
+  const resetPassphraseState = () => {
+    setPassphrase("");
+    setPassphraseConfirm("");
+    setPassphraseError("");
+  };
+
+  const handleRegister = () => {
     if (!username.trim()) {
       setError("Username is required");
       return;
     }
 
+    setError("");
+    setSuccessMessage("");
+    resetPassphraseState();
+    setIsPassphraseModalOpen(true);
+  };
+
+  const completeRegistration = async (passphraseInput: string) => {
     setIsLoading(true);
     setError("");
     setSuccessMessage("");
@@ -104,10 +124,19 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       const wrappedUMK = await wrapUMK(umk, localKEK, wrapAAD);
       console.log("UMK wrapped successfully");
 
+      const recoveryPayload = await createPassphraseRecoveryPayload(
+        passphraseInput,
+        umk,
+      );
+      console.log("Recovery payload generated for passphrase-based restore");
+
       storeUMK(umk);
       console.log("UMK stored locally for active session");
 
-      const completeResponse = await registerFinalize(wrappedUMK);
+      const completeResponse = await registerFinalize(
+        wrappedUMK,
+        recoveryPayload,
+      );
       console.log(
         "Registration finalized, Device ID:",
         completeResponse.device_id,
@@ -124,6 +153,8 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       setSuccessMessage(
         "Registration successful! You can now start syncing messages on this device.",
       );
+      setIsPassphraseModalOpen(false);
+      resetPassphraseState();
       setUsername("");
       onLoginSuccess();
     } catch (err) {
@@ -138,8 +169,115 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
     }
   };
 
+  const handlePassphraseModalClose = () => {
+    if (isLoading) {
+      return;
+    }
+    setIsPassphraseModalOpen(false);
+    resetPassphraseState();
+  };
+
+  const handlePassphraseSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ) => {
+    e.preventDefault();
+    if (!passphrase.trim()) {
+      setPassphraseError("Passphrase is required");
+      return;
+    }
+    if (passphrase.length < 8) {
+      setPassphraseError("Passphrase must be at least 8 characters");
+      return;
+    }
+    if (passphrase !== passphraseConfirm) {
+      setPassphraseError("Passphrases do not match");
+      return;
+    }
+
+    setPassphraseError("");
+    await completeRegistration(passphrase);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      {isPassphraseModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Set Recovery Passphrase
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Enter a passphrase to unlock your master key on new devices. We
+                never store this passphrase, so write it down somewhere safe.
+              </p>
+            </div>
+
+            {passphraseError && (
+              <div className="text-red-600 text-sm">{passphraseError}</div>
+            )}
+
+            {error && (
+              <div className="text-red-600 text-sm">{error}</div>
+            )}
+
+            <form onSubmit={handlePassphraseSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor={passphraseId}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Passphrase
+                </label>
+                <input
+                  type="password"
+                  id={passphraseId}
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter a secure passphrase"
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor={passphraseConfirmId}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Confirm Passphrase
+                </label>
+                <input
+                  type="password"
+                  id={passphraseConfirmId}
+                  value={passphraseConfirm}
+                  onChange={(e) => setPassphraseConfirm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Re-enter the passphrase"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={handlePassphraseModalClose}
+                  className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Registering..." : "Confirm & Register"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-4 right-4">
         <button
           type="button"

@@ -1,6 +1,9 @@
 export interface DebugUser {
   id: string;
   username: string;
+  recovery_wrapped_umk?: string;
+  recovery_salt?: string;
+  recovery_iv?: string;
 }
 
 export interface DebugSession {

@@ -37,9 +37,17 @@ type RegisterInitResponse struct {
 	Username string    `json:"username"`
 }
 
+// RecoveryPayload represents the UMK recovery payload encrypted with a passphrase
+type RecoveryPayload struct {
+	WrappedUMK string `json:"wrapped_umk"`
+	Salt       string `json:"salt"`
+	IV         string `json:"iv"`
+}
+
 // RegisterRequest represents the final registration payload
 type RegisterRequest struct {
-	WrappedUMK string `json:"wrapped_umk"`
+	WrappedUMK string          `json:"wrapped_umk"`
+	Recovery   RecoveryPayload `json:"recovery"`
 }
 
 // RegisterResponse represents the registration response
@@ -113,6 +121,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "wrapped_umk is required")
 	}
 
+	if req.Recovery.WrappedUMK == "" || req.Recovery.Salt == "" || req.Recovery.IV == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "recovery payload is required")
+	}
+
 	cookie, err := c.Cookie(middleware.SessionCookieName)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "registration session not found")
@@ -126,6 +138,10 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	user, exists := h.userStore.FindByID(session.UserID)
 	if !exists {
 		return echo.NewHTTPError(http.StatusNotFound, "user not found")
+	}
+
+	if _, ok := h.userStore.UpdateRecoveryData(user.ID, req.Recovery.WrappedUMK, req.Recovery.Salt, req.Recovery.IV); !ok {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to persist recovery data")
 	}
 
 	device := h.deviceStore.Create(user.ID, req.WrappedUMK)

@@ -61,6 +61,23 @@ func (s *UserStore) Create(username string) *models.User {
 	return user
 }
 
+// UpdateRecoveryData stores the user's passphrase-based recovery payload
+func (s *UserStore) UpdateRecoveryData(userID uuid.UUID, wrappedUMK, salt, iv string) (*models.User, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, exists := s.users[userID]
+	if !exists {
+		return nil, false
+	}
+
+	user.RecoveryWrappedUMK = wrappedUMK
+	user.RecoverySalt = salt
+	user.RecoveryIV = iv
+
+	return user, true
+}
+
 // GetOrCreate finds a user by username or creates a new one
 func (s *UserStore) GetOrCreate(username string) *models.User {
 	user, exists := s.FindByUsername(username)
