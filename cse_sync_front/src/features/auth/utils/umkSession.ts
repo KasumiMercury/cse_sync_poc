@@ -93,7 +93,9 @@ export async function ensureUMKForSession(
       }
 
       wrappedUMK = cachedWrap.wrappedUmk;
-      console.log("Using cached device wrap for offline UMK restore after network failure");
+      console.log(
+        "Using cached device wrap for offline UMK restore after network failure",
+      );
     }
   }
 

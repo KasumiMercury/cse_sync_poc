@@ -4,12 +4,12 @@ import {
   clearCachedDeviceWrap,
   clearCachedMessagesForUser,
 } from "../../../shared/db/indexedDB";
+import { getDeviceId } from "../../../shared/storage/deviceStorage";
+import { clearCachedSessionInfo } from "../../../shared/storage/sessionStorage";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
-import { getDeviceId } from "../../../shared/storage/deviceStorage";
 import { getMessages, sendMessage } from "../api/messageApi";
 import type { Message } from "../types/message";
-import { clearCachedSessionInfo } from "../../../shared/storage/sessionStorage";
 
 interface DashboardProps {
   session: SessionInfo;
@@ -31,9 +31,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
       const result = await getMessages(session);
       setMessages(result.messages);
       if (result.source === "cache") {
-        setStatusMessage(
-          "Offline mode: showing previously synced messages.",
-        );
+        setStatusMessage("Offline mode: showing previously synced messages.");
       }
       setError(null);
     } catch (err) {

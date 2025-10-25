@@ -233,7 +233,9 @@ export async function getCachedMessagesForUser(
   });
 }
 
-export async function clearCachedMessagesForUser(userId: string): Promise<void> {
+export async function clearCachedMessagesForUser(
+  userId: string,
+): Promise<void> {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {

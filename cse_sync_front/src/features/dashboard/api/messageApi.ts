@@ -1,9 +1,9 @@
 import { API_BASE_URL } from "../../../shared/constants/api";
 import { retrieveUMK } from "../../../shared/crypto/keyManagement";
 import {
+  type CachedMessageRecord,
   getCachedMessagesForUser,
   saveMessagesForUser,
-  type CachedMessageRecord,
 } from "../../../shared/db/indexedDB";
 import { getSodium } from "../../../shared/utils";
 import type { SessionInfo } from "../../auth/types/session";
@@ -103,13 +103,14 @@ export async function getMessages(
     const additionalData = sodium.from_string(session.user_id);
     const cachedRecords: CachedMessageRecord[] = [];
     const decryptedMessages = messages.map((message) => {
-      const decryptedContent = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-        null,
-        sodium.from_base64(message.encrypted_content),
-        additionalData,
-        sodium.from_base64(message.nonce),
-        umk,
-      );
+      const decryptedContent =
+        sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+          null,
+          sodium.from_base64(message.encrypted_content),
+          additionalData,
+          sodium.from_base64(message.nonce),
+          umk,
+        );
       const content = sodium.to_string(decryptedContent);
       cachedRecords.push({
         id: message.id,
@@ -152,12 +153,13 @@ export async function getMessages(
   }
 }
 
-function mapCachedRecordsToMessages(
-  records: CachedMessageRecord[],
-): Message[] {
+function mapCachedRecordsToMessages(records: CachedMessageRecord[]): Message[] {
   return records
     .slice()
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    )
     .map((record) => ({
       id: record.id,
       user_id: record.userId,
