@@ -5,8 +5,8 @@ import {
   getCachedMessagesForUser,
   saveMessagesForUser,
 } from "../../../shared/db/indexedDB";
-import { isActuallyOffline } from "../../../shared/utils/debugOffline";
 import { getSodium } from "../../../shared/utils";
+import { isActuallyOffline } from "../../../shared/utils/debugOffline";
 import type { SessionInfo } from "../../auth/types/session";
 import type {
   CreateMessageRequest,

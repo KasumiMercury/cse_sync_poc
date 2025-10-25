@@ -60,7 +60,8 @@ export default defineConfig({
           },
           {
             urlPattern: ({ sameOrigin, request }) =>
-              sameOrigin && ["image", "font", "manifest"].includes(request.destination),
+              sameOrigin &&
+              ["image", "font", "manifest"].includes(request.destination),
             handler: "CacheFirst",
             method: "GET",
             options: {
