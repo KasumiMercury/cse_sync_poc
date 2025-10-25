@@ -6,7 +6,14 @@
     "useIgnoreFile": false
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": [
+      "src/**",
+      "vite.config.ts",
+      "pwa-assets.config.ts",
+      "biome.json",
+      "package.json"
+    ]
   },
   "formatter": {
     "enabled": true,
