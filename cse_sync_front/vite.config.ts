@@ -24,6 +24,8 @@ export default defineConfig({
                 description:
                     "A Proof of Concept App demonstrating client-side encryption",
                 theme_color: "#ffffff",
+                background_color: "#ffffff",
+                display: "standalone",
                 icons: [
                     {
                         src: "pwa-192x192.png",
@@ -38,6 +40,24 @@ export default defineConfig({
                 ],
             },
             registerType: "autoUpdate",
+            workbox: {
+                navigateFallback: "index.html",
+                runtimeCaching: [
+                    {
+                        urlPattern: ({ url }) =>
+                            url.pathname.startsWith("/api/messages"),
+                        handler: "NetworkFirst",
+                        method: "GET",
+                        options: {
+                            cacheName: "api-messages",
+                            networkTimeoutSeconds: 3,
+                            cacheableResponse: {
+                                statuses: [0, 200],
+                            },
+                        },
+                    },
+                ],
+            },
             devOptions: {
                 enabled: true,
             },

@@ -11,7 +11,11 @@ import {
   unwrapUMK,
   wrapUMK,
 } from "../../../shared/crypto/keyManagement";
-import { getKey, storeKey } from "../../../shared/db/indexedDB";
+import {
+  cacheDeviceWrap,
+  getKey,
+  storeKey,
+} from "../../../shared/db/indexedDB";
 import {
   clearDeviceId,
   getDeviceId,
@@ -116,6 +120,12 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       const deviceInfo = await getDevice(effectiveDeviceId);
       const wrapAAD = buildUMKWrapAAD(response.user_id);
       const umk = await unwrapUMK(deviceInfo.wrapped_umk, localKEK, wrapAAD);
+      await cacheDeviceWrap({
+        deviceId: effectiveDeviceId,
+        userId: response.user_id,
+        wrappedUmk: deviceInfo.wrapped_umk,
+        cachedAt: Date.now(),
+      });
       storeUMK(umk);
 
       console.log("UMK successfully unwrapped:", umk.length, "bytes");
@@ -336,6 +346,12 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
       storeUMK(umk);
 
       const registrationResponse = await registerDevice(wrappedUMK);
+      await cacheDeviceWrap({
+        deviceId: registrationResponse.device_id,
+        userId: newDeviceContext.userId,
+        wrappedUmk: wrappedUMK,
+        cachedAt: Date.now(),
+      });
       saveDeviceId(registrationResponse.device_id);
       console.log(
         "New device registered with ID",

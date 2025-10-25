@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { clearStoredUMK } from "../../../shared/crypto/keyManagement";
+import {
+  clearCachedDeviceWrap,
+  clearCachedMessagesForUser,
+} from "../../../shared/db/indexedDB";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
+import { getDeviceId } from "../../../shared/storage/deviceStorage";
 import { getMessages, sendMessage } from "../api/messageApi";
 import type { Message } from "../types/message";
+import { clearCachedSessionInfo } from "../../../shared/storage/sessionStorage";
 
 interface DashboardProps {
   session: SessionInfo;
@@ -17,11 +23,18 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const loadMessages = useCallback(async () => {
     try {
-      const fetchedMessages = await getMessages(session);
-      setMessages(fetchedMessages);
+      setStatusMessage(null);
+      const result = await getMessages(session);
+      setMessages(result.messages);
+      if (result.source === "cache") {
+        setStatusMessage(
+          "Offline mode: showing previously synced messages.",
+        );
+      }
       setError(null);
     } catch (err) {
       console.error("Failed to load messages:", err);
@@ -39,6 +52,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
 
     setIsSending(true);
     setError(null);
+    setStatusMessage(null);
     try {
       await sendMessage(messageInput, session);
       setMessageInput("");
@@ -55,6 +69,22 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
     setIsLoading(true);
     try {
       await logout();
+      try {
+        await clearCachedMessagesForUser(session.user_id);
+      } catch (cacheError) {
+        console.warn("Failed to clear cached messages on logout:", cacheError);
+      }
+
+      const deviceId = getDeviceId();
+      if (deviceId) {
+        try {
+          await clearCachedDeviceWrap(deviceId);
+        } catch (wrapError) {
+          console.warn("Failed to clear cached device wrap:", wrapError);
+        }
+      }
+
+      clearCachedSessionInfo();
       clearStoredUMK();
       onLogout();
     } catch (err) {
@@ -117,6 +147,12 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
               {error}
+            </div>
+          )}
+
+          {statusMessage && !error && (
+            <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded-md">
+              {statusMessage}
             </div>
           )}
 

@@ -17,3 +17,10 @@ export interface CreateMessageRequest {
   content: string;
   nonce: string;
 }
+
+export type MessageSource = "network" | "cache";
+
+export interface MessageFetchResult {
+  messages: Message[];
+  source: MessageSource;
+}
