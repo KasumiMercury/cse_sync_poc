@@ -46,6 +46,31 @@ export default defineConfig({
         navigateFallback: "index.html",
         runtimeCaching: [
           {
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin &&
+              ["script", "style", "worker"].includes(request.destination),
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "static-assets",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ sameOrigin, request }) =>
+              sameOrigin && ["image", "font", "manifest"].includes(request.destination),
+            handler: "CacheFirst",
+            method: "GET",
+            options: {
+              cacheName: "static-media",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/messages"),
             handler: "NetworkFirst",
             method: "GET",

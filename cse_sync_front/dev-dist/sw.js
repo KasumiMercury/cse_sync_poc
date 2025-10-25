@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-d9352e2f'], (function (workbox) { 'use strict';
+define(['./workbox-fd9a0b1a'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -82,12 +82,30 @@ define(['./workbox-d9352e2f'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.lk3dneivlug"
+    "revision": "0.j4d4624h06"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
     allowlist: [/^\/$/]
   }));
+  workbox.registerRoute(({
+    sameOrigin,
+    request
+  }) => sameOrigin && ["script", "style", "worker"].includes(request.destination), new workbox.StaleWhileRevalidate({
+    "cacheName": "static-assets",
+    plugins: [new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
+  workbox.registerRoute(({
+    sameOrigin,
+    request
+  }) => sameOrigin && ["image", "font", "manifest"].includes(request.destination), new workbox.CacheFirst({
+    "cacheName": "static-media",
+    plugins: [new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
   workbox.registerRoute(({
     url
   }) => url.pathname.startsWith("/api/messages"), new workbox.NetworkFirst({
