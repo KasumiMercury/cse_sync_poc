@@ -13,7 +13,13 @@ export default defineConfig({
     }),
     tailwindcss(),
     VitePWA({
-      includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
+      includeAssets: [
+        "favicon.ico",
+        "robots.txt",
+        "apple-touch-icon.png",
+        "manifest.webmanifest",
+        "vite.svg",
+      ],
       manifest: {
         name: "Client-Side Encrypted PoC App",
         short_name: "CSE PoC",
@@ -39,6 +45,78 @@ export default defineConfig({
       workbox: {
         navigateFallback: "index.html",
         runtimeCaching: [
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname === "/@vite/client",
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "vite-client",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/@react-refresh"),
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "vite-react-refresh",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/@vite-plugin-pwa/"),
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "vite-plugin-pwa-runtime",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/src/"),
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "vite-source-modules",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname === "/manifest.webmanifest",
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "pwa-manifest",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.endsWith(".svg"),
+            handler: "StaleWhileRevalidate",
+            method: "GET",
+            options: {
+              cacheName: "static-assets",
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/messages"),
             handler: "NetworkFirst",
