@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { clearStoredUMK } from "../../../shared/crypto/keyManagement";
+import {
+  clearCachedDeviceWrap,
+  clearCachedMessagesForUser,
+} from "../../../shared/db/indexedDB";
+import { getDeviceId } from "../../../shared/storage/deviceStorage";
+import { clearCachedSessionInfo } from "../../../shared/storage/sessionStorage";
+import {
+  isDebugOffline,
+  setDebugOffline,
+} from "../../../shared/utils/debugOffline";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
 import { getMessages, sendMessage } from "../api/messageApi";
@@ -17,11 +27,29 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [debugOfflineEnabled, setDebugOfflineEnabled] = useState(false);
+
+  useEffect(() => {
+    setDebugOfflineEnabled(isDebugOffline());
+  }, []);
+
+  const handleDebugOfflineToggle = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const enabled = event.target.checked;
+    setDebugOfflineEnabled(enabled);
+    setDebugOffline(enabled);
+  };
 
   const loadMessages = useCallback(async () => {
     try {
-      const fetchedMessages = await getMessages(session);
-      setMessages(fetchedMessages);
+      setStatusMessage(null);
+      const result = await getMessages(session);
+      setMessages(result.messages);
+      if (result.source === "cache") {
+        setStatusMessage("Offline mode: showing previously synced messages.");
+      }
       setError(null);
     } catch (err) {
       console.error("Failed to load messages:", err);
@@ -39,6 +67,7 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
 
     setIsSending(true);
     setError(null);
+    setStatusMessage(null);
     try {
       await sendMessage(messageInput, session);
       setMessageInput("");
@@ -55,6 +84,22 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
     setIsLoading(true);
     try {
       await logout();
+      try {
+        await clearCachedMessagesForUser(session.user_id);
+      } catch (cacheError) {
+        console.warn("Failed to clear cached messages on logout:", cacheError);
+      }
+
+      const deviceId = getDeviceId();
+      if (deviceId) {
+        try {
+          await clearCachedDeviceWrap(deviceId);
+        } catch (wrapError) {
+          console.warn("Failed to clear cached device wrap:", wrapError);
+        }
+      }
+
+      clearCachedSessionInfo();
       clearStoredUMK();
       onLogout();
     } catch (err) {
@@ -71,7 +116,16 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
           <h1 className="text-xl font-bold text-gray-800">
             CSE Sync Dashboard
           </h1>
-          <div className="space-x-2">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={debugOfflineEnabled}
+                onChange={handleDebugOfflineToggle}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Simulate Offline</span>
+            </label>
             <button
               type="button"
               onClick={onShowDebug}
@@ -117,6 +171,12 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
               {error}
+            </div>
+          )}
+
+          {statusMessage && !error && (
+            <div className="mb-4 p-3 bg-blue-100 text-blue-700 rounded-md">
+              {statusMessage}
             </div>
           )}
 

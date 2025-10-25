@@ -3,6 +3,11 @@ import { getSession, LoginForm, type SessionInfo } from "./features/auth";
 import { ensureUMKForSession } from "./features/auth/utils/umkSession";
 import { Dashboard } from "./features/dashboard";
 import { Debug } from "./features/debug";
+import {
+  getCachedSessionInfo,
+  saveSessionInfo,
+} from "./shared/storage/sessionStorage";
+import { isActuallyOffline } from "./shared/utils/debugOffline";
 
 type Page = "login" | "dashboard" | "debug";
 
@@ -12,6 +17,28 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>("login");
 
   const checkSession = useCallback(async () => {
+    setIsLoading(true);
+    const isOffline = isActuallyOffline();
+
+    if (isOffline) {
+      const cachedSession = getCachedSessionInfo();
+      if (cachedSession) {
+        try {
+          await ensureUMKForSession(cachedSession, { offlineFallback: true });
+          console.log("Session restored from offline cache");
+          setSession(cachedSession);
+          setCurrentPage("dashboard");
+          return;
+        } catch (restoreError) {
+          console.error("Failed to restore session from cache:", restoreError);
+        }
+      }
+      setSession(null);
+      setCurrentPage("login");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const sessionInfo = await getSession();
       console.log(
@@ -20,10 +47,23 @@ function App() {
       );
       await ensureUMKForSession(sessionInfo);
       console.log("UMK ensured for session");
+      saveSessionInfo(sessionInfo);
       setSession(sessionInfo);
       setCurrentPage("dashboard");
     } catch (error) {
       console.error("Session validation failed:", error);
+      const cachedSession = getCachedSessionInfo();
+      if (cachedSession) {
+        try {
+          await ensureUMKForSession(cachedSession, { offlineFallback: true });
+          console.log("Session restored from offline cache");
+          setSession(cachedSession);
+          setCurrentPage("dashboard");
+          return;
+        } catch (restoreError) {
+          console.error("Failed to restore session from cache:", restoreError);
+        }
+      }
       setSession(null);
       setCurrentPage("login");
     } finally {
