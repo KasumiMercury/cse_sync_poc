@@ -5,6 +5,7 @@ import {
   getCachedMessagesForUser,
   saveMessagesForUser,
 } from "../../../shared/db/indexedDB";
+import { isActuallyOffline } from "../../../shared/utils/debugOffline";
 import { getSodium } from "../../../shared/utils";
 import type { SessionInfo } from "../../auth/types/session";
 import type {
@@ -65,8 +66,7 @@ export async function sendMessage(
 export async function getMessages(
   session: SessionInfo,
 ): Promise<MessageFetchResult> {
-  const isOffline =
-    typeof navigator !== "undefined" && navigator.onLine === false;
+  const isOffline = isActuallyOffline();
 
   if (isOffline) {
     const cachedMessages = await getCachedMessagesForUser(session.user_id);

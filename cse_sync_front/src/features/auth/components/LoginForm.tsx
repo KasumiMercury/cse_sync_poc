@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { PassphraseRecoveryPayload } from "../../../shared/crypto/keyManagement";
 import {
   buildLocalKEKKeyName,
@@ -21,6 +21,10 @@ import {
   getDeviceId,
   saveDeviceId,
 } from "../../../shared/storage/deviceStorage";
+import {
+  isDebugOffline,
+  setDebugOffline,
+} from "../../../shared/utils/debugOffline";
 import {
   getDevice,
   getRecovery,
@@ -55,10 +59,23 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
   const [newDeviceError, setNewDeviceError] = useState("");
   const [newDeviceContext, setNewDeviceContext] =
     useState<NewDeviceContext | null>(null);
+  const [debugOfflineEnabled, setDebugOfflineEnabled] = useState(false);
   const usernameId = useId();
   const passphraseId = useId();
   const passphraseConfirmId = useId();
   const newDevicePassphraseId = useId();
+
+  useEffect(() => {
+    setDebugOfflineEnabled(isDebugOffline());
+  }, []);
+
+  const handleDebugOfflineToggle = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const enabled = event.target.checked;
+    setDebugOfflineEnabled(enabled);
+    setDebugOffline(enabled);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -516,7 +533,16 @@ export function LoginForm({ onLoginSuccess, onShowDebug }: LoginFormProps) {
         </div>
       )}
 
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-gray-700 bg-white px-3 py-2 rounded-md shadow-sm border border-gray-200">
+          <input
+            type="checkbox"
+            checked={debugOfflineEnabled}
+            onChange={handleDebugOfflineToggle}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+          />
+          <span>Simulate Offline</span>
+        </label>
         <button
           type="button"
           onClick={onShowDebug}

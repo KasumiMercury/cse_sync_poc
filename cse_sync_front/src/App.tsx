@@ -7,6 +7,7 @@ import {
   getCachedSessionInfo,
   saveSessionInfo,
 } from "./shared/storage/sessionStorage";
+import { isActuallyOffline } from "./shared/utils/debugOffline";
 
 type Page = "login" | "dashboard" | "debug";
 
@@ -17,8 +18,7 @@ function App() {
 
   const checkSession = useCallback(async () => {
     setIsLoading(true);
-    const isOffline =
-      typeof navigator !== "undefined" && navigator.onLine === false;
+    const isOffline = isActuallyOffline();
 
     if (isOffline) {
       const cachedSession = getCachedSessionInfo();

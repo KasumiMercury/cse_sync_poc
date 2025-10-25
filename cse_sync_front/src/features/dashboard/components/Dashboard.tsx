@@ -6,6 +6,10 @@ import {
 } from "../../../shared/db/indexedDB";
 import { getDeviceId } from "../../../shared/storage/deviceStorage";
 import { clearCachedSessionInfo } from "../../../shared/storage/sessionStorage";
+import {
+  isDebugOffline,
+  setDebugOffline,
+} from "../../../shared/utils/debugOffline";
 import { logout } from "../../auth/api/authApi";
 import type { SessionInfo } from "../../auth/types/session";
 import { getMessages, sendMessage } from "../api/messageApi";
@@ -24,6 +28,19 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [debugOfflineEnabled, setDebugOfflineEnabled] = useState(false);
+
+  useEffect(() => {
+    setDebugOfflineEnabled(isDebugOffline());
+  }, []);
+
+  const handleDebugOfflineToggle = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const enabled = event.target.checked;
+    setDebugOfflineEnabled(enabled);
+    setDebugOffline(enabled);
+  };
 
   const loadMessages = useCallback(async () => {
     try {
@@ -99,7 +116,16 @@ export function Dashboard({ session, onLogout, onShowDebug }: DashboardProps) {
           <h1 className="text-xl font-bold text-gray-800">
             CSE Sync Dashboard
           </h1>
-          <div className="space-x-2">
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={debugOfflineEnabled}
+                onChange={handleDebugOfflineToggle}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <span>Simulate Offline</span>
+            </label>
             <button
               type="button"
               onClick={onShowDebug}

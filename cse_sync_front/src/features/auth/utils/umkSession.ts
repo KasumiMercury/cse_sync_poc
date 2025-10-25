@@ -11,6 +11,7 @@ import {
   getKey,
 } from "../../../shared/db/indexedDB";
 import { getDeviceId } from "../../../shared/storage/deviceStorage";
+import { isActuallyOffline } from "../../../shared/utils/debugOffline";
 import { getDevice } from "../api/authApi";
 import type { SessionInfo } from "../types/session";
 
@@ -43,10 +44,7 @@ export async function ensureUMKForSession(
 
   const wrapAAD = buildUMKWrapAAD(session.user_id);
   let wrappedUMK: string | null = null;
-  const shouldPreferCache =
-    options.offlineFallback &&
-    typeof navigator !== "undefined" &&
-    navigator.onLine === false;
+  const shouldPreferCache = options.offlineFallback && isActuallyOffline();
 
   if (shouldPreferCache) {
     const cachedWrap = await getCachedDeviceWrap(deviceId);
