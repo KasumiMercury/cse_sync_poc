@@ -16,11 +16,13 @@ func main() {
 	sessionStore := store.NewSessionStore()
 	deviceStore := store.NewDeviceStore()
 	messageStore := store.NewMessageStore()
+	connectionStore := store.NewConnectionStore()
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userStore, sessionStore, deviceStore)
 	messageHandler := handlers.NewMessageHandler(userStore, messageStore)
 	deviceHandler := handlers.NewDeviceHandler(deviceStore)
+	signalingHandler := handlers.NewSignalingHandler(sessionStore, userStore, deviceStore, connectionStore)
 	debugHandler := handlers.NewDebugHandler(userStore, sessionStore, deviceStore, messageStore)
 
 	// Create Echo instance
@@ -52,6 +54,7 @@ func main() {
 	protected.GET("/recovery", authHandler.GetRecovery)
 	protected.POST("/devices", deviceHandler.RegisterDevice)
 	protected.GET("/devices/:deviceID", deviceHandler.GetDevice)
+	protected.GET("/devices/signaling", signalingHandler.HandleWebSocket)
 
 	// Start cleanup goroutine
 	go func() {
